@@ -500,6 +500,9 @@ $string['replies'] = 'Replies';
 $string['repliesmany'] = '{$a} replies so far';
 $string['repliesone'] = '{$a} reply so far';
 $string['reply'] = 'Reply';
+$string['ask'] = 'Ask doubt';
+$string['backmaind'] = 'Back to main thread'; 
+$string['clarifydoubt '] = 'clarify doubt';
 $string['replyforum'] = 'Reply to forum';
 $string['replytopostbyemail'] = 'You can reply to this via email.';
 $string['replytouser'] = 'Use email address in reply';
@@ -614,3 +617,4 @@ $string['yournewtopic'] = 'Your new discussion topic';
 $string['yourreply'] = 'Your reply';
 $string['forumsubjectdeleted'] = 'This forum post has been removed';
 $string['forumbodydeleted'] = 'The content of this forum post has been removed and can no longer be accessed.';
+

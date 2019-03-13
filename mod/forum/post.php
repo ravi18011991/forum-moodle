@@ -25,7 +25,8 @@
 require_once('../../config.php');
 require_once('lib.php');
 require_once($CFG->libdir.'/completionlib.php');
-
+$s   = optional_param('s', 0, PARAM_INT);
+//echo $s;
 $reply   = optional_param('reply', 0, PARAM_INT);
 $forum   = optional_param('forum', 0, PARAM_INT);
 $edit    = optional_param('edit', 0, PARAM_INT);
@@ -1042,13 +1043,17 @@ if (!empty($thresholdwarning) && !$edit) {
     // Here we want to throw an exception if they are no longer allowed to post.
     forum_check_blocking_threshold($thresholdwarning);
 }
-
+//echo $parent->discussion; exit;
 if (!empty($parent)) {
     if (!$discussion = $DB->get_record('forum_discussions', array('id' => $parent->discussion))) {
         print_error('notpartofdiscussion', 'forum');
     }
-
-    forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);
+    // TO DO: for use secondary forum ui.
+    if($s){
+        forum_print_spost($parent, $discussion, $forum, $cm, $course, false, false, false);
+    } else {
+        forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);
+    }
     if (empty($post->edit)) {
         if ($forum->type != 'qanda' || forum_user_can_see_discussion($forum, $discussion, $modcontext)) {
             $forumtracked = forum_tp_is_tracked($forum);
