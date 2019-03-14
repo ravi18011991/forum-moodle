@@ -3398,7 +3398,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->edit         = get_string('edit', 'forum');
         $str->delete       = get_string('delete', 'forum');
         $str->reply        = get_string('reply', 'forum');
-        $str->ask          = get_string('ask', 'forum');
+        $str->sthread          = get_string('sthread', 'forum');
         $str->parent       = get_string('parent', 'forum');
         $str->pruneheading = get_string('pruneheading', 'forum');
         $str->prune        = get_string('prune', 'forum');
@@ -3501,7 +3501,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
     }
     if ($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
-         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'s'=>true)), 'text'=>$str->ask);
+         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'s'=>true)), 'text'=>$str->sthread);
     }
    
     
@@ -4594,7 +4594,13 @@ function forum_add_attachment($post, $forum, $cm, $mform=null, $unused=null) {
  */
 function forum_add_new_post($post, $mform, $unused = null) {
     global $USER, $DB;
-
+//        if ($s){
+//           //echo 'ravi'; exit;
+//            // $spost = $post->parent;
+//           // $post->parent = 'ravi';
+//            
+//        }
+    //echo '<pre>';    print_r($post); exit;
     $discussion = $DB->get_record('forum_discussions', array('id' => $post->discussion));
     $forum      = $DB->get_record('forum', array('id' => $discussion->forum));
     $cm         = get_coursemodule_from_instance('forum', $forum->id);
@@ -4741,7 +4747,7 @@ function forum_add_discussion($discussion, $mform=null, $unused=null, $userid=nu
     $post->forum         = $forum->id;     // speedup
     $post->course        = $forum->course; // speedup
     $post->mailnow       = $discussion->mailnow;
-
+    //echo '<pre>'; print_r($post); exit;
     $post->id = $DB->insert_record("forum_posts", $post);
 
     // TODO: Fix the calling code so that there always is a $cm when this function is called
@@ -5935,7 +5941,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
     forum_print_post_start($post);
     // TODO: For make secondary thread in main discussion. 
     if ($s){
-    forum_print_spost($post, $discussion, $forum, $cm, $course, $ownpost, $reply, false,
+    forum_print_stpost($post, $discussion, $forum, $cm, $course, $ownpost, $reply, false,
                  '', '', $postread, true, $forumtracked);
     } else {
         forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, false,
@@ -8621,7 +8627,7 @@ function mod_forum_get_completion_active_rule_descriptions($cm) {
 
 // secondary
 
-function forum_print_spost($post, $discussion, $forum, &$cm, $course, $ownpost=false, $reply=false, $link=false,
+function forum_print_stpost($post, $discussion, $forum, &$cm, $course, $ownpost=false, $reply=false, $link=false,
                           $footer="", $highlight="", $postisread=null, $dummyifcantsee=true, $istracked=null, $return=false) {
     global $USER, $CFG, $OUTPUT;
     //echo 'ravi'; exit;
@@ -8876,7 +8882,7 @@ function forum_print_spost($post, $discussion, $forum, &$cm, $course, $ownpost=f
 //        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
 //    }
     if ($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
-         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('s'=> true, 'reply'=>$post->id)), 'text'=>$str->ask);
+         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply'=>$post->id)), 'text'=>$str->ask);
     }
     if ($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
          $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);

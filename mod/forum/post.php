@@ -25,9 +25,9 @@
 require_once('../../config.php');
 require_once('lib.php');
 require_once($CFG->libdir.'/completionlib.php');
-$s   = optional_param('s', 0, PARAM_INT);
 //echo $s;
 $reply   = optional_param('reply', 0, PARAM_INT);
+$sthread   = optional_param('sthread', 0, PARAM_INT); // To do.
 $forum   = optional_param('forum', 0, PARAM_INT);
 $edit    = optional_param('edit', 0, PARAM_INT);
 $delete  = optional_param('delete', 0, PARAM_INT);
@@ -38,6 +38,7 @@ $groupid = optional_param('groupid', null, PARAM_INT);
 
 $PAGE->set_url('/mod/forum/post.php', array(
     'reply' => $reply,
+    's'=> $sthread,
     'forum' => $forum,
     'edit'  => $edit,
     'delete' => $delete,
@@ -46,18 +47,19 @@ $PAGE->set_url('/mod/forum/post.php', array(
     'confirm' => $confirm,
     'groupid' => $groupid,
 ));
+//echo $s; exit;
 // These page_params will be passed as hidden variables later in the form.
 $pageparams = array('reply' => $reply, 'forum' => $forum, 'edit' => $edit);
 
 $sitecontext = context_system::instance();
 
 if (!isloggedin() or isguestuser()) {
-
+    
     if (!isloggedin() and !get_local_referer()) {
         // No referer+not logged in - probably coming in via email  See MDL-9052.
         require_login();
     }
-
+ 
     if (!empty($forum)) {      // User is starting a new discussion in a forum.
         if (! $forum = $DB->get_record('forum', array('id' => $forum))) {
             print_error('invalidforumid', 'forum');
@@ -100,7 +102,7 @@ require_login(0, false);   // Script is useless unless they're logged in.
 if (!empty($forum)) {      // User is starting a new discussion in a forum.
     if (! $forum = $DB->get_record("forum", array("id" => $forum))) {
         print_error('invalidforumid', 'forum');
-    }
+    }  
     if (! $course = $DB->get_record("course", array("id" => $forum->course))) {
         print_error('invalidcourseid');
     }
@@ -145,7 +147,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->message       = '';
     $post->messageformat = editors_get_preferred_format();
     $post->messagetrust  = 0;
-
+ //echo $sthread; exit;
     if (isset($groupid)) {
         $post->groupid = $groupid;
     } else {
@@ -156,7 +158,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     unset($SESSION->fromdiscussion);
 
 } else if (!empty($reply)) {      // User is writing a new reply.
-
+   
     if (! $parent = forum_get_post_full($reply)) {
         print_error('invalidparentpostid', 'forum');
     }
@@ -214,7 +216,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     }
 
     // Load up the $post variable.
-
+     //echo $s; exit;
     $post = new stdClass();
     $post->course      = $course->id;
     $post->forum       = $forum->id;
@@ -224,6 +226,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->userid      = $USER->id;
     $post->message     = '';
 
+    //$post->stpost = $sthread;
     $post->groupid = ($discussion->groupid == -1) ? 0 : $discussion->groupid;
 
     $strre = get_string('re', 'forum');
@@ -450,14 +453,15 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
     $PAGE->set_cm($cm);
     $PAGE->set_context($modcontext);
-
-    $prunemform = new mod_forum_prune_form(null, array('prune' => $prune, 'confirm' => $prune));
-
-
+  
+    $prunemform = new mod_forum_prune_form(null, array('prune' => $prune, 'confirm' => $prune, 'stpost'=>$sthread));
+    //echo $prune; exit;
+    
     if ($prunemform->is_cancelled()) {
         redirect(forum_go_back_to(new moodle_url("/mod/forum/discuss.php", array('d' => $post->discussion))));
     } else if ($fromform = $prunemform->get_data()) {
         // User submits the data.
+        
         $newdiscussion = new stdClass();
         $newdiscussion->course       = $discussion->course;
         $newdiscussion->forum        = $discussion->forum;
@@ -476,7 +480,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
         $newpost->id      = $post->id;
         $newpost->parent  = 0;
         $newpost->subject = $name;
-
+        //echo '<pre>'; print_r($newpost); exit;
         $DB->update_record("forum_posts", $newpost);
 
         forum_change_discussionid($post->id, $newid);
@@ -554,7 +558,6 @@ if (!isset($coursecontext)) {
     // Has not yet been set by post.php.
     $coursecontext = context_course::instance($forum->course);
 }
-
 
 // From now on user must be logged on properly.
 
@@ -802,12 +805,18 @@ if ($mformpost->is_cancelled()) {
 
     } else if ($fromform->discussion) { // Adding a new post to an existing discussion
         // Before we add this we must check that the user will not exceed the blocking threshold.
+        //echo $fromform->discussion; exit;
         forum_check_blocking_threshold($thresholdwarning);
-
+        
         unset($fromform->groupid);
         $message = '';
         $addpost = $fromform;
         $addpost->forum = $forum->id;
+        // TODO: for secondary thread. 
+        echo $reply; 
+          echo $sthread; exit;
+        //echo '<pre>';  print_r($fromform); exit;
+        //echo '<pre>'; print_r(forum_add_new_post($addpost, $mformpost)); exit;
         if ($fromform->id = forum_add_new_post($addpost, $mformpost)) {
             $fromform->deleted = 0;
             $subscribemessage = forum_post_subscription($fromform, $forum, $discussion);
@@ -1049,8 +1058,8 @@ if (!empty($parent)) {
         print_error('notpartofdiscussion', 'forum');
     }
     // TO DO: for use secondary forum ui.
-    if($s){
-        forum_print_spost($parent, $discussion, $forum, $cm, $course, false, false, false);
+    if($sthread){
+        forum_print_stpost($parent, $discussion, $forum, $cm, $course, false, false, false);
     } else {
         forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);
     }
