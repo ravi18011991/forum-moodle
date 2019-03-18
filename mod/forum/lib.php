@@ -1863,7 +1863,7 @@ function forum_get_post_full($postid) {
  * @param bool $tracking does user track the forum?
  * @return array of posts
  */
-function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false) {
+function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false, $sthread=false) {
     global $CFG, $DB, $USER;
 
     $tr_sel  = "";
@@ -1886,13 +1886,21 @@ function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false) {
                                  ORDER BY $sort", $params)) {
         return array();
     }
-
+    //echo '<pre>';        print_r($posts); exit;
     foreach ($posts as $pid=>$p) {
         if ($tracking) {
             if (forum_tp_is_post_old($p)) {
                  $posts[$pid]->postread = true;
             }
         }
+//        if($sthread) { // Secondary thread
+//            if($p->parent < 0) {
+//                
+//            }
+//
+//        //echo $p->parent; exit;
+//            
+//        }
         if (!$p->parent) {
             continue;
         }
@@ -1904,7 +1912,7 @@ function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false) {
         }
         $posts[$p->parent]->children[$pid] =& $posts[$pid];
     }
-
+ //echo '<pre>'; print_r($posts); exit;
     // Start with the last child of the first post.
     $post = &$posts[reset($posts)->id];
 
@@ -1918,7 +1926,7 @@ function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false) {
             $post = &$posts[end($post->children)->id];
         }
     }
-
+//echo '<pre>'; print_r($posts); exit;
     return $posts;
 }
 
@@ -4592,14 +4600,14 @@ function forum_add_attachment($post, $forum, $cm, $mform=null, $unused=null) {
  * @param   string      $unused
  * @return int
  */
-function forum_add_new_post($post, $mform, $unused = null) {
+function forum_add_new_post($post, $mform, $sthread = false, $unused = null) {
     global $USER, $DB;
-//        if ($s){
-//           //echo 'ravi'; exit;
-//            // $spost = $post->parent;
-//           // $post->parent = 'ravi';
-//            
-//        }
+   // echo 'ravi'.$sthread; exit;
+        if ($sthread){
+          // echo 'ravi'; exit;
+          // $spost = $post->parent;
+           $post->parent = -$post->parent;            
+        }
     //echo '<pre>';    print_r($post); exit;
     $discussion = $DB->get_record('forum_discussions', array('id' => $post->discussion));
     $forum      = $DB->get_record('forum', array('id' => $discussion->forum));
@@ -5862,6 +5870,7 @@ function forum_print_latest_discussions($course, $forum, $maxdiscussions = -1, $
  */
 function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode, $canreply=NULL, $canrate=false, $s=false) {
     global $USER, $CFG;
+    //echo '<pre>';    print_r($post); 
             //echo $s; exit;
     require_once($CFG->dirroot.'/rating/lib.php');
 
@@ -5889,10 +5898,12 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
     }
 
     $forumtracked = forum_tp_is_tracked($forum);
-    $posts = forum_get_all_discussion_posts($discussion->id, $sort, $forumtracked);
-    //echo '<pre>';    print_r($posts); exit;
+    $posts = forum_get_all_discussion_posts($discussion->id, $sort, $forumtracked, $s);     
+    //echo '<pre>'; print_r($posts); exit;  
+    //echo '<pre>'; print_r($posts[$post->id]); exit;  
+    //echo '<pre>'; $posts[$post->id]->children; 
     $post = $posts[$post->id];
-
+    //echo '<pre>'; print_r($post); 
     foreach ($posts as $pid=>$p) {
         $posters[$p->userid] = $p->userid;
     }
@@ -5939,7 +5950,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
     $postread = !empty($post->postread);
 
     forum_print_post_start($post);
-    // TODO: For make secondary thread in main discussion. 
+    // TODO: For make secondary thread in main discussion.    
     if ($s){
     forum_print_stpost($post, $discussion, $forum, $cm, $course, $ownpost, $reply, false,
                  '', '', $postread, true, $forumtracked);
@@ -5947,7 +5958,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
         forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, false,
                 '', '', $postread, true, $forumtracked);        
     }
-
+//echo '<pre>';    print_r($posts); exit;
     switch ($mode) {
         case FORUM_MODE_FLATOLDEST :
         case FORUM_MODE_FLATNEWEST :
@@ -5960,6 +5971,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
             break;
 
         case FORUM_MODE_NESTED :
+            //echo '<pre>';    print_r($posts); exit;
             forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts);
             break;
     }
@@ -6088,12 +6100,13 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
  */
 function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts) {
     global $USER, $CFG;
-
+    //echo '<pre>'; print_r($posts); exit;
+    //echo '<pre>'; print_r($parent); exit;
     $link  = false;
-
+    //echo '<pre>'; print_r($posts[$parent->id]->children);
     if (!empty($posts[$parent->id]->children)) {
         $posts = $posts[$parent->id]->children;
-
+       //echo '<pre>'; print_r($posts); exit;
         foreach ($posts as $post) {
 
             echo '<div class="indent">';

@@ -92,6 +92,7 @@ class mod_forum_post_form extends moodleform {
         $post = $this->_customdata['post'];
         $subscribe = $this->_customdata['subscribe'];
         $edit = $this->_customdata['edit'];
+        $sthread = $this->_customdata['sthread'];
         $thresholdwarning = $this->_customdata['thresholdwarning'];
 
         $mform->addElement('header', 'general', '');//fill in the data depending on page params later using set_data
@@ -272,6 +273,9 @@ class mod_forum_post_form extends moodleform {
 
         $mform->addElement('hidden', 'edit');
         $mform->setType('edit', PARAM_INT);
+        
+        $mform->addElement('hidden', 'sthread');
+        $mform->setType('sthread', PARAM_INT);
 
         $mform->addElement('hidden', 'reply');
         $mform->setType('reply', PARAM_INT);

@@ -25,9 +25,8 @@
 require_once('../../config.php');
 require_once('lib.php');
 require_once($CFG->libdir.'/completionlib.php');
-//echo $s;
 $reply   = optional_param('reply', 0, PARAM_INT);
-$sthread   = optional_param('sthread', 0, PARAM_INT); // To do.
+$sthread = optional_param('sthread', 0, PARAM_INT); // To do.
 $forum   = optional_param('forum', 0, PARAM_INT);
 $edit    = optional_param('edit', 0, PARAM_INT);
 $delete  = optional_param('delete', 0, PARAM_INT);
@@ -38,7 +37,7 @@ $groupid = optional_param('groupid', null, PARAM_INT);
 
 $PAGE->set_url('/mod/forum/post.php', array(
     'reply' => $reply,
-    's'=> $sthread,
+    'sthread'=> $sthread,
     'forum' => $forum,
     'edit'  => $edit,
     'delete' => $delete,
@@ -49,7 +48,7 @@ $PAGE->set_url('/mod/forum/post.php', array(
 ));
 //echo $s; exit;
 // These page_params will be passed as hidden variables later in the form.
-$pageparams = array('reply' => $reply, 'forum' => $forum, 'edit' => $edit);
+$pageparams = array('reply' => $reply, 'sthread' => $sthread,'forum' => $forum, 'edit' => $edit);
 
 $sitecontext = context_system::instance();
 
@@ -147,7 +146,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->message       = '';
     $post->messageformat = editors_get_preferred_format();
     $post->messagetrust  = 0;
- //echo $sthread; exit;
     if (isset($groupid)) {
         $post->groupid = $groupid;
     } else {
@@ -157,8 +155,8 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     // Unsetting this will allow the correct return URL to be calculated later.
     unset($SESSION->fromdiscussion);
 
-} else if (!empty($reply)) {      // User is writing a new reply.
-   
+} else if (!empty($reply)) { // User is writing a new reply.
+  
     if (! $parent = forum_get_post_full($reply)) {
         print_error('invalidparentpostid', 'forum');
     }
@@ -216,7 +214,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     }
 
     // Load up the $post variable.
-     //echo $s; exit;
     $post = new stdClass();
     $post->course      = $course->id;
     $post->forum       = $forum->id;
@@ -225,8 +222,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->subject     = $parent->subject;
     $post->userid      = $USER->id;
     $post->message     = '';
-
-    //$post->stpost = $sthread;
     $post->groupid = ($discussion->groupid == -1) ? 0 : $discussion->groupid;
 
     $strre = get_string('re', 'forum');
@@ -454,9 +449,9 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $PAGE->set_cm($cm);
     $PAGE->set_context($modcontext);
   
-    $prunemform = new mod_forum_prune_form(null, array('prune' => $prune, 'confirm' => $prune, 'stpost'=>$sthread));
+    $prunemform = new mod_forum_prune_form(null, array('prune' => $prune, 'confirm' => $prune));
     //echo $prune; exit;
-    
+    //echo '<pre>';    print_r($prunemform); exit;
     if ($prunemform->is_cancelled()) {
         redirect(forum_go_back_to(new moodle_url("/mod/forum/discuss.php", array('d' => $post->discussion))));
     } else if ($fromform = $prunemform->get_data()) {
@@ -583,6 +578,7 @@ $mformpost = new mod_forum_post_form('post.php', array('course' => $course,
     'modcontext' => $modcontext,
     'forum' => $forum,
     'post' => $post,
+    'sthread' => $sthread,
     'subscribe' => \mod_forum\subscriptions::is_subscribed($USER->id, $forum,
         null, $cm),
     'thresholdwarning' => $thresholdwarning,
@@ -812,12 +808,8 @@ if ($mformpost->is_cancelled()) {
         $message = '';
         $addpost = $fromform;
         $addpost->forum = $forum->id;
-        // TODO: for secondary thread. 
-        echo $reply; 
-          echo $sthread; exit;
-        //echo '<pre>';  print_r($fromform); exit;
-        //echo '<pre>'; print_r(forum_add_new_post($addpost, $mformpost)); exit;
-        if ($fromform->id = forum_add_new_post($addpost, $mformpost)) {
+        // TODO: for secondary thread.         
+        if ($fromform->id = forum_add_new_post($addpost, $mformpost, $sthread)) {
             $fromform->deleted = 0;
             $subscribemessage = forum_post_subscription($fromform, $forum, $discussion);
 
@@ -1063,11 +1055,14 @@ if (!empty($parent)) {
     } else {
         forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);
     }
+    //echo $sthread;
     if (empty($post->edit)) {
         if ($forum->type != 'qanda' || forum_user_can_see_discussion($forum, $discussion, $modcontext)) {
             $forumtracked = forum_tp_is_tracked($forum);
             $posts = forum_get_all_discussion_posts($discussion->id, "created ASC", $forumtracked);
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $parent, 0, false, $forumtracked, $posts);
+            if (!$sthread) { // Not need in secondary thread.
+                forum_print_posts_threaded($course, $cm, $forum, $discussion, $parent, 0, false, $forumtracked, $posts);
+            }
         }
     }
 } else {

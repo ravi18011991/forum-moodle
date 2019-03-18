@@ -57,9 +57,5 @@ class mod_forum_prune_form extends moodleform {
         $mform->addElement('hidden', 'confirm');
         $mform->setType('confirm', PARAM_INT);
         $mform->setConstant('confirm', $this->_customdata['confirm']);
-        
-        $mform->addElement('hidden', 'stpost');
-        $mform->setType('stpost', PARAM_INT);
-        $mform->setConstant('stpost', $this->_customdata['stpost']);
     }
 }

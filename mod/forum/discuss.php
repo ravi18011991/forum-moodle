@@ -391,12 +391,8 @@ if ($move == -1 and confirm_sesskey()) {
 }
 
 $canrate = has_capability('mod/forum:rate', $modcontext);
-//if ($s){
-//    echo 'yes';
-//}else {
-//forum_print_discussion($course, $cm, $forum, $discussion, $post, $displaymode, $canreply, $canrate);
-//}
  // TODO: For make sceondary discussion 
+//echo '<pre>';print_r($post); 
 forum_print_discussion($course, $cm, $forum, $discussion, $post, $displaymode, $canreply, $canrate, $s);
 echo $neighbourlinks;
 
