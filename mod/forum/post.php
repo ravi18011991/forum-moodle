@@ -237,12 +237,15 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     if (! $post = forum_get_post_full($edit)) {
         print_error('invalidpostid', 'forum');
     }
+    if ($post->parent < 0) { // for secondary thread.
+        $post->parent = $post->parent*(-1);
+    }
     if ($post->parent) {
         if (! $parent = forum_get_post_full($post->parent)) {
             print_error('invalidparentpostid', 'forum');
         }
     }
-
+    
     if (! $discussion = $DB->get_record("forum_discussions", array("id" => $post->discussion))) {
         print_error('notpartofdiscussion', 'forum');
     }
@@ -364,6 +367,8 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
                     // the forum itself since it only has one discussion
                     // thread.
                     $discussionurl = new moodle_url("/mod/forum/view.php", array('f' => $forum->id));
+                } else if ($forum->type == 'qanda' && $sthread) {
+                    $discussionurl = new moodle_url("/mod/forum/discuss.php", array('sthread'=> true, 'd' => $discussion->id));
                 } else {
                     $discussionurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));
                 }
@@ -396,7 +401,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             echo $OUTPUT->header();
             echo $OUTPUT->heading(format_string($forum->name), 2);
             echo $OUTPUT->confirm(get_string("deletesureplural", "forum", $replycount + 1),
-                "post.php?delete=$delete&confirm=$delete",
+               "post.php?delete=$delete&confirm=$delete",
                 $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
 
             forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
@@ -647,6 +652,7 @@ $mformpost->set_data(
         'attachments' => $draftitemid,
         'general' => $heading,
         'subject' => $post->subject,
+        'sthread' => $sthread,
         'message' => array(
             'text' => $currenttext,
             'format' => empty($post->messageformat) ? editors_get_preferred_format() : $post->messageformat,
@@ -770,7 +776,9 @@ if ($mformpost->is_cancelled()) {
             // the forum itself since it only has one discussion
             // thread.
             $discussionurl = new moodle_url("/mod/forum/view.php", array('f' => $forum->id));
-        } else {
+        } else if ($forum->type == 'qanda' && $sthread)  {
+            $discussionurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id, 'sthread'=>true), 'p' . $fromform->id);
+        } else  {
             $discussionurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id), 'p' . $fromform->id);
         }
 
@@ -819,13 +827,17 @@ if ($mformpost->is_cancelled()) {
                 $message .= '<p>'.get_string("postaddedsuccess", "forum") . '</p>';
                 $message .= '<p>'.get_string("postaddedtimeleft", "forum", format_time($CFG->maxeditingtime)) . '</p>';
             }
-
+            
             if ($forum->type == 'single') {
                 // Single discussion forums are an exception. We show
                 // the forum itself since it only has one discussion
                 // thread.
                 $discussionurl = new moodle_url("/mod/forum/view.php", array('f' => $forum->id), 'p'.$fromform->id);
-            } else {
+            } else if($forum->type == 'qanda' && $sthread) {
+                $discussionurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id, 'sthread' => true,), 'p'.$fromform->id);
+
+            }
+            else {
                 $discussionurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id), 'p'.$fromform->id);
             }
 
@@ -1050,11 +1062,7 @@ if (!empty($parent)) {
         print_error('notpartofdiscussion', 'forum');
     }
     // TO DO: for use secondary forum ui.
-    if($sthread){
-        forum_print_stpost($parent, $discussion, $forum, $cm, $course, false, false, false);
-    } else {
-        forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);
-    }
+    forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);    
     //echo $sthread;
     if (empty($post->edit)) {
         if ($forum->type != 'qanda' || forum_user_can_see_discussion($forum, $discussion, $modcontext)) {
