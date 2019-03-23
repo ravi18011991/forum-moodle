@@ -404,7 +404,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
                "post.php?delete=$delete&confirm=$delete",
                 $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
 
-            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
+            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, $sthread);
 
             if (empty($post->edit)) {
                 $forumtracked = forum_tp_is_tracked($forum);
@@ -417,7 +417,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             echo $OUTPUT->confirm(get_string("deletesure", "forum", $replycount),
                 "post.php?delete=$delete&confirm=$delete",
                 $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
-            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
+            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, $sthread);
         }
 
     }
@@ -544,7 +544,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
         $prunemform->display();
 
-        forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
+        forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, $sthread);
     }
 
     echo $OUTPUT->footer();
@@ -1062,14 +1062,14 @@ if (!empty($parent)) {
         print_error('notpartofdiscussion', 'forum');
     }
     // TO DO: for use secondary forum ui.
-    forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);    
+    forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false, $sthread);    
     //echo $sthread;
     if (empty($post->edit)) {
         if ($forum->type != 'qanda' || forum_user_can_see_discussion($forum, $discussion, $modcontext)) {
             $forumtracked = forum_tp_is_tracked($forum);
             $posts = forum_get_all_discussion_posts($discussion->id, "created ASC", $forumtracked);
-            if (!$sthread) { // Not need in secondary thread.
-                forum_print_posts_threaded($course, $cm, $forum, $discussion, $parent, 0, false, $forumtracked, $posts);
+            if(!$sthread) {
+            forum_print_posts_threaded($course, $cm, $forum, $discussion, $parent, 0, false, $forumtracked, $posts);
             }
         }
     }

@@ -3254,11 +3254,10 @@ function forum_print_post_end($post, $return = false) {
 function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=false, $reply=false, $link=false,
                           $footer="", $highlight="", $postisread=null, $dummyifcantsee=true, $istracked=null, $sthread = false, $return=false) {
     global $USER, $CFG, $OUTPUT;
-    //echo $sthread;exit;
     require_once($CFG->libdir . '/filelib.php');
-
-    // String cache
     static $str;
+    //echo $sthread; exit;
+    //echo $_GET['sthread']; exit;
     // This is an extremely hacky way to ensure we only print the 'unread' anchor
     // the first time we encounter an unread post on a page. Ideally this would
     // be moved into the caller somehow, and be better testable. But at the time
@@ -3411,8 +3410,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->markread     = get_string('markread', 'forum');
         $str->markunread   = get_string('markunread', 'forum');
     }
-
-    if($sthread){
+    
+    if(optional_param('sthread', 0, PARAM_INT)) { // Identify Secondary thread.
         $discussionlink = new moodle_url('/mod/forum/discuss.php', array('d'=>$post->discussion, 'sthread'=> true));
     } else {
         $discussionlink = new moodle_url('/mod/forum/discuss.php', array('d'=>$post->discussion));
@@ -3446,12 +3445,13 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
 
     // Prepare an array of commands
     $commands = array();
-    if(!$sthread) { // Secondary thread.
-    // Add a permalink.
+    // Add a permalink. 
+    if(!$sthread) {       
+        echo $sthread.' ';
+        echo  $discussion->firstpost.'-'.$post->id .'-'. !optional_param('sthread', 0, PARAM_INT).'-'.'not sthread';;
     $permalink = new moodle_url($discussionlink);
     $permalink->set_anchor('p' . $post->id);
     $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
-
     // SPECIAL CASE: The front page can display a news item post to non-logged in users.
     // Don't display the mark read / unread controls in this case.
     if ($istracked && $CFG->forum_usermarksread && isloggedin()) {
@@ -3504,24 +3504,31 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     } else if (($ownpost && $age < $CFG->maxeditingtime && $cm->cache->caps['mod/forum:deleteownpost']) || $cm->cache->caps['mod/forum:deleteanypost']) {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('delete'=>$post->id)), 'text'=>$str->delete);
     }
-
     if ($reply) {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
     }
-    if ($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
+    if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'sthread'=>true)), 'text'=>$str->sthread);
-    }
-    } else {
-        if ($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
-            $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply'=>$post->id)), 'text'=>$str->ask);
-        }
-        if ($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
-            $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);
-        }
-    }
-    if ($forum->type == 'qanda' and $discussion->firstpost !== $post->id and $sthread) {         
-        // Add a permalink.
-         $permalink = new moodle_url($discussionlink);
+    } 
+} 
+    if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and $sthread) {        
+        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply'=>$post->id)), 'text'=>$str->ask);        
+    }   
+    //echo '<pre>'; print_r($commands); exit;
+    if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and !empty($_GET['sthread'])) {
+            //echo $sthread; exit;
+        $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);
+    }  
+if ($sthread and $forum->type == 'qanda' and $discussion->firstpost !== $post->id or optional_param('sthread', 0, PARAM_INT) and $discussion->firstpost !== $post->id) {         
+    echo $sthread.' ';
+    echo  $discussion->firstpost.'-'.$post->id .'-'. optional_param('sthread', 0, PARAM_INT).'-'.'sthread';;
+    //echo optional_param('sthread', 0, PARAM_INT);
+    //echo $_GET['sthread'];   
+    // Add a permalink.
+        //echo  $discussion->firstpost;
+        //echo $post->id;
+        unset($commands);
+        $permalink = new moodle_url($discussionlink);
          $permalink->set_anchor('p' . $post->id);
          $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
      
@@ -3574,8 +3581,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
             if ($reply) {
                  $commands[] = array('url' => new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply' => $post->id)), 'text' => $str->reply);
             }
-             $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);
-        }
+            $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);
+}
+
     if ($CFG->enableportfolios && ($cm->cache->caps['mod/forum:exportpost'] || ($ownpost && $cm->cache->caps['mod/forum:exportownpost']))) {
         $p = array('postid' => $post->id);
         require_once($CFG->libdir.'/portfoliolib.php');
@@ -6012,11 +6020,11 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
         case FORUM_MODE_FLATOLDEST :
         case FORUM_MODE_FLATNEWEST :
         default:
-            forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts);
+            forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts, $sthread);
             break;
 
         case FORUM_MODE_THREADED :
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts);
+            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts, $sthread);
             break;
 
         case FORUM_MODE_NESTED :
@@ -6042,7 +6050,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
  * @param array $posts
  * @return void
  */
-function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts) {
+function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts , $sthread = false) {
     global $USER, $CFG;
 
     $link  = false;
@@ -6058,7 +6066,7 @@ function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode
 
         forum_print_post_start($post);
         forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
-                             '', '', $postread, true, $forumtracked);
+                             '', '', $postread, true, $forumtracked, $sthread);
         forum_print_post_end($post);
     }
 }
@@ -6071,7 +6079,7 @@ function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode
  * @uses CONTEXT_MODULE
  * @return void
  */
-function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent, $depth, $reply, $forumtracked, $posts) {
+function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent, $depth, $reply, $forumtracked, $posts, $sthread = false) {
     global $USER, $CFG;
 
     $link  = false;
@@ -6093,7 +6101,7 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
 
                 forum_print_post_start($post);
                 forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
-                                     '', '', $postread, true, $forumtracked);
+                                     '', '', $postread, true, $forumtracked, $sthread);
                 forum_print_post_end($post);
             } else {
                 if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm, true)) {
@@ -6134,7 +6142,7 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
                 echo "</span>";
             }
 
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts);
+            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts, $sthread);
             echo "</div>\n";
         }
     }
@@ -6169,7 +6177,7 @@ function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $
             forum_print_post_start($post);
             forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
                                  '', '', $postread, true, $forumtracked, $sthread);
-            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts);
+            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread = false);
             forum_print_post_end($post);
             echo "</div>\n";
         }
