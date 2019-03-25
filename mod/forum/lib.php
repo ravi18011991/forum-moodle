@@ -3411,7 +3411,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->markunread   = get_string('markunread', 'forum');
     }
     
-    if(optional_param('sthread', 0, PARAM_INT)) { // Identify Secondary thread.
+    if($sthread) { // Identify Secondary thread.
         $discussionlink = new moodle_url('/mod/forum/discuss.php', array('d'=>$post->discussion, 'sthread'=> true));
     } else {
         $discussionlink = new moodle_url('/mod/forum/discuss.php', array('d'=>$post->discussion));
@@ -3445,12 +3445,12 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
 
     // Prepare an array of commands
     $commands = array();
-    // Add a permalink. 
-    if(!$sthread) {       
-        echo $sthread.' ';
-        echo  $discussion->firstpost.'-'.$post->id .'-'. !optional_param('sthread', 0, PARAM_INT).'-'.'not sthread';;
     $permalink = new moodle_url($discussionlink);
     $permalink->set_anchor('p' . $post->id);
+    // Add a permalink. 
+    if(!$sthread) { // Identify not secondary thread.      
+        echo $sthread.' ';
+        echo  $discussion->firstpost.'-'.$post->id .'-'. !optional_param('sthread', 0, PARAM_INT).'-'.'not sthread';;    
     $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
     // SPECIAL CASE: The front page can display a news item post to non-logged in users.
     // Don't display the mark read / unread controls in this case.
@@ -3498,7 +3498,6 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     if ($cm->cache->caps['mod/forum:splitdiscussions'] && $post->parent && $forum->type != 'single') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('prune'=>$post->id)), 'text'=>$str->prune, 'title'=>$str->pruneheading);
     }
-
     if ($forum->type == 'single' and $discussion->firstpost == $post->id) {
         // Do not allow deleting of first post in single simple type.
     } else if (($ownpost && $age < $CFG->maxeditingtime && $cm->cache->caps['mod/forum:deleteownpost']) || $cm->cache->caps['mod/forum:deleteanypost']) {
@@ -3511,27 +3510,15 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'sthread'=>true)), 'text'=>$str->sthread);
     } 
 } 
-    if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and $sthread) {        
-        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply'=>$post->id)), 'text'=>$str->ask);        
-    }   
-    //echo '<pre>'; print_r($commands); exit;
-    if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and !empty($_GET['sthread'])) {
-            //echo $sthread; exit;
-        $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);
-    }  
-if ($sthread and $forum->type == 'qanda' and $discussion->firstpost !== $post->id or optional_param('sthread', 0, PARAM_INT) and $discussion->firstpost !== $post->id) {         
+if ($sthread and $forum->type == 'qanda') { // Secondary thread.     
     echo $sthread.' ';
     echo  $discussion->firstpost.'-'.$post->id .'-'. optional_param('sthread', 0, PARAM_INT).'-'.'sthread';;
-    //echo optional_param('sthread', 0, PARAM_INT);
-    //echo $_GET['sthread'];   
-    // Add a permalink.
-        //echo  $discussion->firstpost;
-        //echo $post->id;
-        unset($commands);
-        $permalink = new moodle_url($discussionlink);
-         $permalink->set_anchor('p' . $post->id);
-         $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
-     
+        if($discussion->firstpost == $post->id and  basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
+            //$commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
+            //unset($commands);
+        } else {
+            $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
+        }  
          // SPECIAL CASE: The front page can display a news item post to non-logged in users.
          // Don't display the mark read / unread controls in this case.
          if ($istracked && $CFG->forum_usermarksread && isloggedin()) {
@@ -3561,29 +3548,52 @@ if ($sthread and $forum->type == 'qanda' and $discussion->firstpost !== $post->i
             if (!$post->parent && $forum->type == 'news' && $discussion->timestart > time()) {
                  $age = 0;
             }
-            if ($forum->type == 'single' and $discussion->firstpost == $post->id) { // To do - when using similar function.
+            /*if ($forum->type == 'single' and $discussion->firstpost == $post->id) { // To do - when using similar function.
                  if (has_capability('moodle/course:manageactivities', $modcontext)) {
                      // The first post in single simple is the forum description.
                      $commands[] = array('url' => new moodle_url('/course/modedit.php', array('update' => $cm->id, 'sesskey' => sesskey(), 'return' => 1)), 'text' => $str->edit);
                  }
-            }  else if (($ownpost && $age < $CFG->maxeditingtime) || $cm->cache->caps['mod/forum:editanypost']) {
+            }
+            if (($ownpost && $age < $CFG->maxeditingtime) || $cm->cache->caps['mod/forum:editanypost']) {
+                $commands[] = array('url' => new moodle_url('/mod/forum/post.php', array('sthread'=> true, 'edit' => $post->id)), 'text' => $str->edit);
+            */  
+            /*********EDIT***** */
+            if($discussion->firstpost == $post->id and  basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
+                //$commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
+                //unset($commands);
+            } else if (($ownpost && $age < $CFG->maxeditingtime) || $cm->cache->caps['mod/forum:editanypost']) {
                 $commands[] = array('url' => new moodle_url('/mod/forum/post.php', array('sthread'=> true, 'edit' => $post->id)), 'text' => $str->edit);
             }
      
             //  if ($cm->cache->caps['mod/forum:splitdiscussions'] && $post->parent && $forum->type != 'single') {
             //      $commands[] = array('url' => new moodle_url('/mod/forum/post.php', array('prune' => $post->id)), 'text' => $str->prune, 'title' => $str->pruneheading);
             //  }        
-            if ($forum->type == 'single' and $discussion->firstpost == $post->id) {
-                 // Do not allow deleting of first post in single simple type.
+            /*************DELETE***** */
+            // if ($forum->type == 'single' and $discussion->firstpost == $post->id) {
+            //      // Do not allow deleting of first post in single simple type.
+            // } else if (($ownpost && $age < $CFG->maxeditingtime && $cm->cache->caps['mod/forum:deleteownpost']) || $cm->cache->caps['mod/forum:deleteanypost']) {
+            //      $commands[] = array('url' => new moodle_url('/mod/forum/post.php', array('sthread'=> true, 'delete' => $post->id)), 'text' => $str->delete);
+            // }
+            if($discussion->firstpost == $post->id and  basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
+                //$commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
+                //unset($commands);
             } else if (($ownpost && $age < $CFG->maxeditingtime && $cm->cache->caps['mod/forum:deleteownpost']) || $cm->cache->caps['mod/forum:deleteanypost']) {
-                 $commands[] = array('url' => new moodle_url('/mod/forum/post.php', array('sthread'=> true, 'delete' => $post->id)), 'text' => $str->delete);
+                      $commands[] = array('url' => new moodle_url('/mod/forum/post.php', array('sthread'=> true, 'delete' => $post->id)), 'text' => $str->delete);
             }
+            /*************REPLY********** */
+            // if ($reply) {
+            //      $commands[] = array('url' => new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply' => $post->id)), 'text' => $str->reply);
+            // }
             if ($reply) {
-                 $commands[] = array('url' => new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply' => $post->id)), 'text' => $str->reply);
+                if($discussion->firstpost == $post->id) {
+                    $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply'=>$post->id)), 'text'=>$str->ask);        
+                } else {
+                    $commands[] = array('url' => new moodle_url('/mod/forum/post.php#mformforum', array('sthread'=> true, 'reply' => $post->id)), 'text' => $str->reply);
+                }
             }
             $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id)), 'text'=>$str->backmaind);
 }
-
+        
     if ($CFG->enableportfolios && ($cm->cache->caps['mod/forum:exportpost'] || ($ownpost && $cm->cache->caps['mod/forum:exportownpost']))) {
         $p = array('postid' => $post->id);
         require_once($CFG->libdir.'/portfoliolib.php');
@@ -6177,7 +6187,7 @@ function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $
             forum_print_post_start($post);
             forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
                                  '', '', $postread, true, $forumtracked, $sthread);
-            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread = false);
+            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread);
             forum_print_post_end($post);
             echo "</div>\n";
         }

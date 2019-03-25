@@ -33,6 +33,7 @@ $delete  = optional_param('delete', 0, PARAM_INT);
 $prune   = optional_param('prune', 0, PARAM_INT);
 $name    = optional_param('name', '', PARAM_CLEAN);
 $confirm = optional_param('confirm', 0, PARAM_INT);
+//echo $confirm;  
 $groupid = optional_param('groupid', null, PARAM_INT);
 
 $PAGE->set_url('/mod/forum/post.php', array(
@@ -53,7 +54,6 @@ $pageparams = array('reply' => $reply, 'sthread' => $sthread,'forum' => $forum, 
 $sitecontext = context_system::instance();
 
 if (!isloggedin() or isguestuser()) {
-    
     if (!isloggedin() and !get_local_referer()) {
         // No referer+not logged in - probably coming in via email  See MDL-9052.
         require_login();
@@ -97,7 +97,7 @@ if (!isloggedin() or isguestuser()) {
 }
 
 require_login(0, false);   // Script is useless unless they're logged in.
-
+    
 if (!empty($forum)) {      // User is starting a new discussion in a forum.
     if (! $forum = $DB->get_record("forum", array("id" => $forum))) {
         print_error('invalidforumid', 'forum');
@@ -155,11 +155,14 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     // Unsetting this will allow the correct return URL to be calculated later.
     unset($SESSION->fromdiscussion);
 
-} else if (!empty($reply)) { // User is writing a new reply.
-  
+} else if (!empty($reply)) { // User is writing a new reply.    
     if (! $parent = forum_get_post_full($reply)) {
         print_error('invalidparentpostid', 'forum');
+    }    
+    if($parent->parent < 0) {
+        $parent->parent = $parent->parent*(-1);
     }
+    //echo '<pre>'; print_r($parent); exit;
     if (! $discussion = $DB->get_record("forum_discussions", array("id" => $parent->discussion))) {
         print_error('notpartofdiscussion', 'forum');
     }
@@ -317,6 +320,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
     if (!empty($confirm) && confirm_sesskey()) {    // User has confirmed the delete.
         // Check user capability to delete post.
+        //echo 'ravi'.$sthread;
         $timepassed = time() - $post->created;
         if (($timepassed > $CFG->maxeditingtime) && !has_capability('mod/forum:deleteanypost', $modcontext)) {
             print_error("cannotdeletepost", "forum",
@@ -387,7 +391,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
 
     } else { // User just asked to delete something.
-
         forum_set_return();
         $PAGE->navbar->add(get_string('delete', 'forum'));
         $PAGE->set_title($course->shortname);
@@ -402,9 +405,13 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             echo $OUTPUT->heading(format_string($forum->name), 2);
             echo $OUTPUT->confirm(get_string("deletesureplural", "forum", $replycount + 1),
                "post.php?delete=$delete&confirm=$delete",
-                $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
-
-            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, $sthread);
+               $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
+                if($sthread) { // print post.php
+                    forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, '', '', NULL, true, NULL, $sthread);
+                    }else {
+                        forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
+                
+                } 
 
             if (empty($post->edit)) {
                 $forumtracked = forum_tp_is_tracked($forum);
@@ -417,7 +424,13 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             echo $OUTPUT->confirm(get_string("deletesure", "forum", $replycount),
                 "post.php?delete=$delete&confirm=$delete",
                 $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
-            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, $sthread);
+                if($sthread) { // print post.php
+                    //echo '<pre>'; print_r($parent); exit;
+                    forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, '', '', NULL, true, NULL, $sthread);
+                    } else {
+                        forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
+                
+                } 
         }
 
     }
@@ -544,7 +557,12 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
         $prunemform->display();
 
-        forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, $sthread);
+        if($sthread) { // print post.php
+            forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false, '', '', NULL, true, NULL, $sthread);
+            } else {
+                forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
+        
+        } 
     }
 
     echo $OUTPUT->footer();
@@ -1062,8 +1080,12 @@ if (!empty($parent)) {
         print_error('notpartofdiscussion', 'forum');
     }
     // TO DO: for use secondary forum ui.
-    forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false, $sthread);    
-    //echo $sthread;
+    if($sthread) { // print post.php
+    forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false, '', '', NULL, true, NULL, $sthread);
+    } else {
+        forum_print_post($parent, $discussion, $forum, $cm, $course, false, false, false);
+
+    } 
     if (empty($post->edit)) {
         if ($forum->type != 'qanda' || forum_user_can_see_discussion($forum, $discussion, $modcontext)) {
             $forumtracked = forum_tp_is_tracked($forum);
