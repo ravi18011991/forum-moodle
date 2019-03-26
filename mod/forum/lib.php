@@ -3401,6 +3401,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->delete       = get_string('delete', 'forum');
         $str->reply        = get_string('reply', 'forum');
         $str->ask          = get_string('ask', 'forum');
+        $str->attempt      = get_string('attempt', 'forum'); 
         $str->backmaind    = get_string('backmaind', 'forum');
         $str->sthread          = get_string('sthread', 'forum');
         $str->parent       = get_string('parent', 'forum');
@@ -3450,7 +3451,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     // Add a permalink. 
     if(!$sthread) { // Identify not secondary thread.      
         echo $sthread.' ';
-        echo  $discussion->firstpost.'-'.$post->id .'-'. !optional_param('sthread', 0, PARAM_INT).'-'.'not sthread';;    
+        echo  $discussion->firstpost.'-'.$post->id .'-'.'main sthread';   
     $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
     // SPECIAL CASE: The front page can display a news item post to non-logged in users.
     // Don't display the mark read / unread controls in this case.
@@ -3504,7 +3505,11 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('delete'=>$post->id)), 'text'=>$str->delete);
     }
     if ($reply) {
-        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
+        if($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
+            $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->attempt);
+        } else {
+            $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
+        }     
     }
     if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'sthread'=>true)), 'text'=>$str->sthread);
@@ -3512,7 +3517,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
 } 
 if ($sthread and $forum->type == 'qanda') { // Secondary thread.     
     echo $sthread.' ';
-    echo  $discussion->firstpost.'-'.$post->id .'-'. optional_param('sthread', 0, PARAM_INT).'-'.'sthread';;
+    echo  $discussion->firstpost.'-'.$post->id .'-'.'Secondary thread';;
         if($discussion->firstpost == $post->id and  basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
             //$commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
             //unset($commands);

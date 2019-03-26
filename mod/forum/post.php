@@ -162,7 +162,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     if($parent->parent < 0) {
         $parent->parent = $parent->parent*(-1);
     }
-    //echo '<pre>'; print_r($parent); exit;
     if (! $discussion = $DB->get_record("forum_discussions", array("id" => $parent->discussion))) {
         print_error('notpartofdiscussion', 'forum');
     }
@@ -215,8 +214,9 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     if (!$cm->visible and !has_capability('moodle/course:viewhiddenactivities', $modcontext)) {
         print_error("activityiscurrentlyhidden");
     }
-
+    ///echo $forum->type;
     // Load up the $post variable.
+    //echo '<pre>'; print_r($forum); exit;
     $post = new stdClass();
     $post->course      = $course->id;
     $post->forum       = $forum->id;
@@ -224,7 +224,25 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->parent      = $parent->id;
     $post->subject     = $parent->subject;
     $post->userid      = $USER->id;
-    $post->message     = '';
+    //echo $discussion->firstpost;
+    //echo '<pre>'; print_r($post); exit;
+    if($forum->type == 'qanda'and $discussion->firstpost==$post->parent) {
+        $question = $DB->get_field('forum_posts', 'message', array('id'=> $discussion->firstpost));
+        $table = '<table>
+        <tbody>
+            <tr>
+                <td><b> ans: </b>&nbsp;&nbsp;&nbsp;</td>
+            </tr>
+            <tr>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>';
+        $newquestion = str_replace("</li>","</li>$table", $question);   
+        $post->message     = $newquestion;
+    } else {
+        $post->message     = '';
+    }    
     $post->groupid = ($discussion->groupid == -1) ? 0 : $discussion->groupid;
 
     $strre = get_string('re', 'forum');
@@ -829,7 +847,9 @@ if ($mformpost->is_cancelled()) {
         // Before we add this we must check that the user will not exceed the blocking threshold.
         //echo $fromform->discussion; exit;
         forum_check_blocking_threshold($thresholdwarning);
-        
+        if(!empty($fromform->savedraft)) {
+            echo 'ravi'; exit;
+        }
         unset($fromform->groupid);
         $message = '';
         $addpost = $fromform;
@@ -1074,7 +1094,6 @@ if (!empty($thresholdwarning) && !$edit) {
     // Here we want to throw an exception if they are no longer allowed to post.
     forum_check_blocking_threshold($thresholdwarning);
 }
-//echo $parent->discussion; exit;
 if (!empty($parent)) {
     if (!$discussion = $DB->get_record('forum_discussions', array('id' => $parent->discussion))) {
         print_error('notpartofdiscussion', 'forum');

@@ -616,4 +616,6 @@ $string['forumsubjectdeleted'] = 'This forum post has been removed';
 $string['forumbodydeleted'] = 'The content of this forum post has been removed and can no longer be accessed.';
 $string['sthread'] = 'Secondary thread';
 $string['ask'] = 'Ask doubt';
-$string['backmaind'] = 'Back to main thread'; 
+$string['backmaind'] = 'Back to main thread';
+$string['attempt'] = 'Attempt'; 
+$string['savedraft'] = 'Save as Draft'; 
