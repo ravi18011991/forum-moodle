@@ -93,8 +93,8 @@ class mod_forum_post_form extends moodleform {
         $subscribe = $this->_customdata['subscribe'];
         $edit = $this->_customdata['edit'];
         $sthread = $this->_customdata['sthread'];
+        $firstpostid = $this->_customdata['firstpostid']; // to do
         $thresholdwarning = $this->_customdata['thresholdwarning'];
-       // echo '<pre>'; print_r($post); exit;
         $mform->addElement('header', 'general', '');//fill in the data depending on page params later using set_data
 
         // If there is a warning message and we are not editing a post we need to handle the warning.
@@ -255,14 +255,15 @@ class mod_forum_post_form extends moodleform {
         }
         if($forum->type == 'qanda' and !$sthread) {
             $buttonarray=array();
-            $buttonarray[] =& $mform->createElement('submit', 'savedraft', get_string('savedraft', 'mod_forum'));
+            if($post->parent == $firstpostid) {
+                $buttonarray[] =& $mform->createElement('submit', 'savedraft', get_string('savedraft', 'mod_forum'));
+            }
             $buttonarray[] =& $mform->createElement('submit', 'submitbutton', $submit_string);
             $buttonarray[] =& $mform->createElement('cancel');
             $mform->addGroup($buttonarray, 'buttonar', '', array(' '), false);
             $mform->closeHeaderBefore('buttonar');
         } else {        
-        $this->add_action_buttons(true, $submit_string);
-        
+            $this->add_action_buttons(true, $submit_string);    
     }
         $mform->addElement('hidden', 'course');
         $mform->setType('course', PARAM_INT);

@@ -392,9 +392,11 @@ if (!empty($forum->blockafter) && !empty($forum->blockperiod)) {
     echo $OUTPUT->notification(get_string('thisforumisthrottled','forum',$a));
 }
 
-if ($forum->type == 'qanda' && !has_capability('mod/forum:viewqandawithoutposting', $modcontext) &&
-            !forum_user_has_posted($forum->id,$discussion->id,$USER->id)) {
-    echo $OUTPUT->notification(get_string('qandanotify', 'forum'));
+if(!$sthread) { // to do. 
+    if ($forum->type == 'qanda' && !has_capability('mod/forum:viewqandawithoutposting', $modcontext) &&
+                !forum_user_has_posted($forum->id,$discussion->id,$USER->id)) {
+                echo $OUTPUT->notification(get_string('qandanotify', 'forum'));
+    }
 }
 
 if ($move == -1 and confirm_sesskey()) {

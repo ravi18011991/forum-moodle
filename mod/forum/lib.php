@@ -1863,7 +1863,7 @@ function forum_get_post_full($postid) {
  */
 function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false, $sthread=false) {
     global $CFG, $DB, $USER;
-
+    //echo $dfirstpost; exit;
     $tr_sel  = "";
     $tr_join = "";
     $params = array();
@@ -1884,21 +1884,26 @@ function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false, $
                                  ORDER BY $sort", $params)) {
         return array();
     }
-    //echo '<pre>';        print_r($posts); exit;
+    //echo '<pre>';print_r($posts); 
     foreach ($posts as $pid=>$p) {
+       //echo '<pre>'; print_r($p->id); exit;
         if ($tracking) {
             if (forum_tp_is_post_old($p)) {
                  $posts[$pid]->postread = true;
             }
         }
+        // if($dfirstpost !== $p->id and $p->parent == 0) {
+        //     $p->parent = $dfirstpost;
+        // } 
         if($sthread) { // Secondary thread
-            if($p->parent > 0) {
+            if($p->parent > 0) { // only display secondary thread.
                 $p->parent = 0;
             }             
             if($p->parent < 0) {
                 $p->parent = $p->parent*(-1);
             }           
         }
+        
         if (!$p->parent) {
             continue;
         }
@@ -1907,9 +1912,11 @@ function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false, $
         }
         if (!isset($posts[$p->parent]->children)) {
             $posts[$p->parent]->children = array();
-        }
+        }        
         $posts[$p->parent]->children[$pid] =& $posts[$pid];
     }
+
+    //echo '<pre>';print_r($posts); exit;
     // Start with the last child of the first post.
     $post = &$posts[reset($posts)->id];
     $lastpost = false;
@@ -1922,6 +1929,7 @@ function forum_get_all_discussion_posts($discussionid, $sort, $tracking=false, $
             $post = &$posts[end($post->children)->id];
         }
     }
+    //echo '<pre>';print_r($post); exit;
     return $posts;
 }
 
@@ -2703,7 +2711,7 @@ function forum_get_discussions($cm, $forumsort="", $fullpost=true, $unused=-1, $
         $updatedsincesql = 'AND d.timemodified > ?';
         $params[] = $updatedsince;
     }
-
+    //echo $post->firstpost;
     $allnames = get_all_user_name_fields(true, 'u');
     $sql = "SELECT $postdata, d.name, d.timemodified, d.usermodified, d.groupid, d.timestart, d.timeend, d.pinned,
                    $allnames, u.email, u.picture, u.imagealt $umfields
@@ -2711,7 +2719,7 @@ function forum_get_discussions($cm, $forumsort="", $fullpost=true, $unused=-1, $
                    JOIN {forum_posts} p ON p.discussion = d.id
                    JOIN {user} u ON p.userid = u.id
                    $umtable
-             WHERE d.forum = ? AND p.parent = 0
+             WHERE d.forum = ? AND p.parent = 0 
                    $timelimit $groupselect $updatedsincesql
           ORDER BY $forumsort, d.id DESC";
 
@@ -3253,7 +3261,7 @@ function forum_print_post_end($post, $return = false) {
  */
 function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=false, $reply=false, $link=false,
                           $footer="", $highlight="", $postisread=null, $dummyifcantsee=true, $istracked=null, $sthread = false, $return=false) {
-    global $USER, $CFG, $OUTPUT;
+    global $USER, $CFG, $OUTPUT, $DB;
     require_once($CFG->libdir . '/filelib.php');
     static $str;
     //echo $sthread; exit;
@@ -3305,44 +3313,46 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $postisread = forum_tp_is_post_read($USER->id, $post);
     }
 
-    if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm, false)) {
-        // Do _not_ check the deleted flag - we need to display a different UI.
-        $output = '';
-        if (!$dummyifcantsee) {
+    if(!$sthread) { // doubt.
+        if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm, false)) {
+            // Do _not_ check the deleted flag - we need to display a different UI.
+            $output = '';
+            if (!$dummyifcantsee) {
+                if ($return) {
+                    return $output;
+                }
+                echo $output;
+                return;
+            }
+
+            $output .= html_writer::start_tag('div', array('class' => 'forumpost clearfix',
+                                                           'aria-label' => get_string('hiddenforumpost', 'forum')));
+            $output .= html_writer::start_tag('header', array('class' => 'row header'));
+            $output .= html_writer::tag('div', '', array('class' => 'left picture', 'role' => 'presentation')); // Picture.
+            if ($post->parent) {
+                $output .= html_writer::start_tag('div', array('class' => 'topic'));
+            } else {
+                $output .= html_writer::start_tag('div', array('class' => 'topic starter'));
+            }
+            $output .= html_writer::tag('div', get_string('forumsubjecthidden','forum'), array('class' => 'subject',
+                                                                                               'role' => 'header',
+                                                                                               'id' => ('headp' . $post->id))); // Subject.
+            $authorclasses = array('class' => 'author');
+            $output .= html_writer::tag('address', get_string('forumauthorhidden', 'forum'), $authorclasses); // Author.
+            $output .= html_writer::end_tag('div');
+            $output .= html_writer::end_tag('header'); // Header.
+            $output .= html_writer::start_tag('div', array('class'=>'row'));
+            $output .= html_writer::tag('div', '&nbsp;', array('class'=>'left side')); // Groups
+            $output .= html_writer::tag('div', get_string('forumbodyhidden','forum'), array('class'=>'content')); // Content
+            $output .= html_writer::end_tag('div'); // row
+            $output .= html_writer::end_tag('div'); // forumpost
+
             if ($return) {
                 return $output;
             }
             echo $output;
             return;
         }
-
-        $output .= html_writer::start_tag('div', array('class' => 'forumpost clearfix',
-                                                       'aria-label' => get_string('hiddenforumpost', 'forum')));
-        $output .= html_writer::start_tag('header', array('class' => 'row header'));
-        $output .= html_writer::tag('div', '', array('class' => 'left picture', 'role' => 'presentation')); // Picture.
-        if ($post->parent) {
-            $output .= html_writer::start_tag('div', array('class' => 'topic'));
-        } else {
-            $output .= html_writer::start_tag('div', array('class' => 'topic starter'));
-        }
-        $output .= html_writer::tag('div', get_string('forumsubjecthidden','forum'), array('class' => 'subject',
-                                                                                           'role' => 'header',
-                                                                                           'id' => ('headp' . $post->id))); // Subject.
-        $authorclasses = array('class' => 'author');
-        $output .= html_writer::tag('address', get_string('forumauthorhidden', 'forum'), $authorclasses); // Author.
-        $output .= html_writer::end_tag('div');
-        $output .= html_writer::end_tag('header'); // Header.
-        $output .= html_writer::start_tag('div', array('class'=>'row'));
-        $output .= html_writer::tag('div', '&nbsp;', array('class'=>'left side')); // Groups
-        $output .= html_writer::tag('div', get_string('forumbodyhidden','forum'), array('class'=>'content')); // Content
-        $output .= html_writer::end_tag('div'); // row
-        $output .= html_writer::end_tag('div'); // forumpost
-
-        if ($return) {
-            return $output;
-        }
-        echo $output;
-        return;
     }
 
     if (!empty($post->deleted)) {
@@ -3401,6 +3411,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->delete       = get_string('delete', 'forum');
         $str->reply        = get_string('reply', 'forum');
         $str->ask          = get_string('ask', 'forum');
+        $str->postconfirm   = get_string('postconfirm', 'forum');
+        $str->editdraft   = get_string('editdraft', 'forum');
         $str->attempt      = get_string('attempt', 'forum'); 
         $str->backmaind    = get_string('backmaind', 'forum');
         $str->sthread          = get_string('sthread', 'forum');
@@ -3469,7 +3481,11 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         }
         $commands[] = array('url'=>$url, 'text'=>$text, 'attributes' => ['rel' => 'bookmark']);
     }
-
+    // handle draft 
+    // if($post->id > $discussion->firstpost and $forum->type == 'qanda') { // TODO: two discussion
+    //     $postid = $DB->get_field('forum_posts', 'id', array('id'=> $post->id, 'parent'=> 0));
+    //     //echo $postid;
+    // }
     // Zoom in to the parent specifically
     if ($post->parent) {
         $url = new moodle_url($discussionlink);
@@ -3492,6 +3508,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
             // The first post in single simple is the forum description.
             $commands[] = array('url'=>new moodle_url('/course/modedit.php', array('update'=>$cm->id, 'sesskey'=>sesskey(), 'return'=>1)), 'text'=>$str->edit);
         }
+    } else if ($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { // draft post.
+        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('edit'=>$post->id)),'text'=>$str->editdraft);            
     } else if (($ownpost && $age < $CFG->maxeditingtime) || $cm->cache->caps['mod/forum:editanypost']) {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('edit'=>$post->id)), 'text'=>$str->edit);
     }
@@ -3507,7 +3525,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     if ($reply) {
         if($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
             $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->attempt);
-        } else {
+        } else if ($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { // Draft post 
+            $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('pconfirm'=>$post->id, 'sesskey' => sesskey())),'text'=>$str->postconfirm);            
+        }  else {
             $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
         }     
     }
@@ -4686,7 +4706,7 @@ function forum_add_attachment($post, $forum, $cm, $mform=null, $unused=null) {
  * @param   string      $unused
  * @return int
  */
-function forum_add_new_post($post, $mform, $sthread = false, $unused = null) {
+function forum_add_new_post($post, $mform, $sthread = false, $draftpost = false, $unused = null) {
     global $USER, $DB;
         //echo $sthread; exit;
     $discussion = $DB->get_record('forum_discussions', array('id' => $post->discussion));
@@ -4704,8 +4724,11 @@ function forum_add_new_post($post, $mform, $sthread = false, $unused = null) {
     if (!isset($post->mailnow)) {
         $post->mailnow    = 0;
     }
-    if($sthread) {
+    if($sthread) { // For secondary thread.
         $post->parent = -$post->parent;
+    }
+    if($draftpost) { // For draftpost
+        $post->created = 0;
     }
     $post->id = $DB->insert_record("forum_posts", $post);
     $post->message = file_save_draft_area_files($post->itemid, $context->id, 'mod_forum', 'post', $post->id,
@@ -5567,7 +5590,7 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
         $post->id = $post->parent;
     }
 
-    if ($checkdeleted && !empty($post->deleted)) {
+    if ($checkdeleted && !empty($post->deleted)) { // 
         return false;
     }
 
@@ -5609,7 +5632,7 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
         return false;
     }
 
-    if ($forum->type == 'qanda') {
+    if ($forum->type == 'qanda') { // to do - change.
         if (has_capability('mod/forum:viewqandawithoutposting', $modcontext, $user->id) || $post->userid == $user->id
                 || (isset($discussion->firstpost) && $discussion->firstpost == $post->id)) {
             return true;
@@ -5644,8 +5667,7 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
  */
 function forum_print_latest_discussions($course, $forum, $maxdiscussions = -1, $displayformat = 'plain', $sort = '',
                                         $currentgroup = -1, $groupmode = -1, $page = -1, $perpage = 100, $cm = null) {
-    global $CFG, $USER, $OUTPUT;
-
+    global $CFG, $USER, $OUTPUT;                                    
     require_once($CFG->dirroot . '/course/lib.php');
 
     if (!$cm) {
@@ -5952,9 +5974,9 @@ function forum_print_latest_discussions($course, $forum, $maxdiscussions = -1, $
  */
 function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode, $canreply=NULL, $canrate=false, $sthread = false) {
     global $USER, $CFG;
-
+    //echo $discussion->firstpost; 
     require_once($CFG->dirroot.'/rating/lib.php');
-
+      
     $ownpost = (isloggedin() && $USER->id == $post->userid);
 
     $modcontext = context_module::instance($cm->id);
@@ -5980,7 +6002,9 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
 
     $forumtracked = forum_tp_is_tracked($forum);
     $posts = forum_get_all_discussion_posts($discussion->id, $sort, $forumtracked, $sthread);
+    //echo '<pre>'; print_r($posts); exit; 
     $post = $posts[$post->id];
+    //echo '<pre>'; print_r($posts); exit; 
 
     foreach ($posts as $pid=>$p) {
         $posters[$p->userid] = $p->userid;

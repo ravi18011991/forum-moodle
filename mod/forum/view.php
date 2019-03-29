@@ -220,7 +220,7 @@
             echo '<br />';
             if (!empty($showall)) {
                 forum_print_latest_discussions($course, $forum, 0, 'header', '', -1, -1, -1, 0, $cm);
-            } else {
+            } else {                
                 forum_print_latest_discussions($course, $forum, -1, 'header', '', -1, -1, $page, $CFG->forum_manydiscussions, $cm);
             }
 
