@@ -621,4 +621,12 @@ $string['attempt'] = 'Attempt';
 $string['savedraft'] = 'Save as Draft';
 $string['postconfirm'] = 'Confirm and post';
 $string['editdraft'] = 'Edit draft'; 
-$string['confirmpost'] = 'Are you sure to confirm this post';
+$string['confirmpost'] = 'Pressing OK will post this attempt and make it visible to other students. Press Cancel to continue in draft mode';
+$string['attemptpost'] = 'Press OK to start an attempt. Instead, If you wish to clarify a doubt or have any other issues with the question or your attempt, please press Cancel and post the same in the secondary thread instead.
+Though you are allowed only a single attempt, you will be able to complete it in multiple sessions using the Save as Draft feature';
+$string['firstpostattempt'] = 'View only posted attempts (not drafts)';
+$string['viewdraftattempt'] = 'View all attempts including drafts';
+$string['confirmdraftpost'] = 'Confirm all student drafts';
+$string['notifydraftconfirm'] = 'All draft post is now confirmed';
+$string['alreadydraftconfirmed'] = 'All draft post is already confirmed in this discussion';
+$string['draftpostconfirmation'] = 'Are you sure want to confirm all student drafts post';

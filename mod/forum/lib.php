@@ -3467,6 +3467,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
     // SPECIAL CASE: The front page can display a news item post to non-logged in users.
     // Don't display the mark read / unread controls in this case.
+    //echo '<pre>'; print_r($post); exit;
     if ($istracked && $CFG->forum_usermarksread && isloggedin()) {
         $url = new moodle_url($discussionlink, array('postid'=>$post->id, 'mark'=>'unread'));
         $text = $str->markunread;
@@ -3502,18 +3503,16 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     if (!$post->parent && $forum->type == 'news' && $discussion->timestart > time()) {
         $age = 0;
     }
-
     if ($forum->type == 'single' and $discussion->firstpost == $post->id) {
         if (has_capability('moodle/course:manageactivities', $modcontext)) {
             // The first post in single simple is the forum description.
             $commands[] = array('url'=>new moodle_url('/course/modedit.php', array('update'=>$cm->id, 'sesskey'=>sesskey(), 'return'=>1)), 'text'=>$str->edit);
         }
     } else if ($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { // draft post.
-        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('edit'=>$post->id)),'text'=>$str->editdraft);            
+        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('edit'=>$post->id, 'draftedit'=> true)),'text'=>$str->editdraft);            
     } else if (($ownpost && $age < $CFG->maxeditingtime) || $cm->cache->caps['mod/forum:editanypost']) {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('edit'=>$post->id)), 'text'=>$str->edit);
     }
-
     if ($cm->cache->caps['mod/forum:splitdiscussions'] && $post->parent && $forum->type != 'single') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('prune'=>$post->id)), 'text'=>$str->prune, 'title'=>$str->pruneheading);
     }
@@ -3521,20 +3520,32 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         // Do not allow deleting of first post in single simple type.
     } else if (($ownpost && $age < $CFG->maxeditingtime && $cm->cache->caps['mod/forum:deleteownpost']) || $cm->cache->caps['mod/forum:deleteanypost']) {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('delete'=>$post->id)), 'text'=>$str->delete);
+    } else if ($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { 
+        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('delete'=>$post->id)), 'text'=>$str->delete);
     }
     if ($reply) {
-        if($forum->type == 'qanda' and $discussion->firstpost == $post->id) {
-            $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->attempt);
-        } else if ($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { // Draft post 
+
+    }  
+    if($forum->type == 'qanda') {
+        if($discussion->firstpost == $post->id) {                        
+            //forum_discussions_user_has_posted_in($forum->id, $USER->id); 
+            //echo '<pre>'; print_r(forum_user_has_posted($forum->id, $discussion->id, $USER->id)); exit;
+            $isposted = forum_user_has_posted($forum->id, $discussion->id, $USER->id);            
+            if(empty($isposted) || has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+                $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id,'attempt'=> $post->id)),'text'=>$str->attempt);
+            }                            
+        }  else if ($post->parent == $discussion->firstpost and $post->created == 0) { // Draft post 
             $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('pconfirm'=>$post->id, 'sesskey' => sesskey())),'text'=>$str->postconfirm);            
-        }  else {
+        }  else if($discussion->firstpost !== $post->id) {
             $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
-        }     
-    }
+        }  
+    } else {
+        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
+    }     
     if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'sthread'=>true)), 'text'=>$str->sthread);
     } 
-} 
+}
 if ($sthread and $forum->type == 'qanda') { // Secondary thread.     
     echo $sthread.' ';
     echo  $discussion->firstpost.'-'.$post->id .'-'.'Secondary thread';;
@@ -3693,12 +3704,21 @@ if ($sthread and $forum->type == 'qanda') { // Secondary thread.
         $postsubject = format_string($postsubject);
     }
     $output .= html_writer::div($postsubject, 'subject', ['role' => 'heading', 'aria-level' => '1', 'id' => ('headp' . $post->id)]);
-
+    //echo $authorhidden; exit;
     if ($authorhidden) {
-        $bytext = userdate_htmltime($post->created);
+        if($forum->type == 'qanda' and $discussion->firstpost !== $post->id and $post->created == 0){
+            $bytext = userdate_htmltime($post->modified);
+        } else {
+            $bytext = userdate_htmltime($post->created);
+        }        
     } else {
         $by = new stdClass();
-        $by->date = userdate_htmltime($post->created);
+        if($forum->type == 'qanda' and $discussion->firstpost !== $post->id and $post->created == 0){
+            $by->date = userdate_htmltime($post->modified);
+        } else {
+            $by->date = userdate_htmltime($post->created);
+        }     
+        //$by->date = userdate_htmltime($post->created);
         $by->name = html_writer::link($postuser->profilelink, $postuser->fullname);
         $bytext = get_string('bynameondate', 'forum', $by);
     }
@@ -3782,8 +3802,11 @@ if ($sthread and $forum->type == 'qanda') { // Secondary thread.
 
     // Output the commands
     $commandhtml = array();
+    //echo '<pre>'; print_r($commands); 
+    //echo $userdraftpost = $DB->get_field('forum_posts', 'created', array('userid'=> $post->userid, 'id' => $post->id));
     foreach ($commands as $command) {
         if (is_array($command)) {
+            //echo '<pre>'; print_r($command);
             $attributes = ['class' => 'nav-item nav-link'];
             if (isset($command['attributes'])) {
                 $attributes = array_merge($attributes, $command['attributes']);
@@ -3792,9 +3815,9 @@ if ($sthread and $forum->type == 'qanda') { // Secondary thread.
         } else {
             $commandhtml[] = $command;
         }
-    }
+    } 
     $output .= html_writer::tag('div', implode(' ', $commandhtml), array('class' => 'commands nav'));
-
+//exit;
     // Output link to post if required
     if ($link) {
         if (forum_user_can_post($forum, $discussion, $USER, $cm, $course, $modcontext)) {
@@ -4272,6 +4295,25 @@ function forum_print_mode_form($id, $mode, $forumtype='') {
         $select = new single_select(new moodle_url("/mod/forum/discuss.php", array('d'=>$id)), 'mode', forum_get_layout_modes(), $mode, null, "mode");
         $select->set_label(get_string('displaymode', 'forum'), array('class' => 'accesshide'));
     }
+    echo $OUTPUT->render($select);
+}
+
+/**
+ * Print the drop down that allows the user to select how they want to have
+ * the discussion displayed.
+ *
+ * @param int $id forum id if $forumtype is 'single',
+ *              discussion id for any other forum type
+ * @param mixed $mode forum layout mode
+ * @param string $forumtype optional
+ */
+function forum_print_attempt_form($id, $mode, $forumtype) {
+    global $OUTPUT;
+    if ($forumtype == 'qanda') {
+        $select = new single_select(new moodle_url("/mod/forum/view.php", array('f'=>$id)), 'mode', forum_get_attempt(), $mode, null, "mode");
+        $select->set_label(get_string('displaymode', 'forum'), array('class' => 'accesshide'));
+        $select->class = "forummode";
+    } 
     echo $OUTPUT->render($select);
 }
 
@@ -5241,13 +5283,12 @@ function forum_discussions_user_has_posted_in($forumid, $userid) {
                             d.*
                        FROM {forum_posts} p,
                             {forum_discussions} d
-                      WHERE p.discussion = d.id
+                      WHERE p.discussion = d.id 
                         AND d.forum = ?
                         AND p.userid = ?";
 
     return $DB->get_records_sql($haspostedsql, array($forumid, $userid));
 }
-
 /**
  * @global object
  * @global object
@@ -5264,7 +5305,7 @@ function forum_user_has_posted($forumid, $did, $userid) {
         $sql = "SELECT 'x'
                   FROM {forum_posts} p
                   JOIN {forum_discussions} d ON d.id = p.discussion
-                 WHERE p.userid = :userid AND d.forum = :forumid";
+                 WHERE p.userid = :userid AND d.forum = :forumid AND p.parent > 0"; // P.parent > o because of secondary thread.
         return $DB->record_exists_sql($sql, array('forumid'=>$forumid,'userid'=>$userid));
     } else {
         return $DB->record_exists('forum_posts', array('discussion'=>$did,'userid'=>$userid));
@@ -5633,6 +5674,9 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
     }
 
     if ($forum->type == 'qanda') { // to do - change.
+        // if ($post->userid == $user->id) {
+        //     return true;
+        // } 
         if (has_capability('mod/forum:viewqandawithoutposting', $modcontext, $user->id) || $post->userid == $user->id
                 || (isset($discussion->firstpost) && $discussion->firstpost == $post->id)) {
             return true;
@@ -6058,8 +6102,8 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
     switch ($mode) {
         case FORUM_MODE_FLATOLDEST :
         case FORUM_MODE_FLATNEWEST :
-        default:
-            forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts, $sthread);
+        default: // TODO: inconginto.
+            forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts, $sthread); 
             break;
 
         case FORUM_MODE_THREADED :
@@ -6193,16 +6237,17 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
  * @global object
  * @return void
  */
-function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts, $sthread = false) {
+function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts, $sthread = false) {  
     global $USER, $CFG;
-
-    $link  = false;
-
+    $link = false;
+    $modcontext = context_module::instance($cm->id);
     if (!empty($posts[$parent->id]->children)) {
-        $posts = $posts[$parent->id]->children;
-
+        $posts = $posts[$parent->id]->children;        
         foreach ($posts as $post) {
-
+            //TODO: check capability. test teacher can reply even draft post.
+            if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+                continue;
+            }
             echo '<div class="indent">';
             if (!isloggedin()) {
                 $ownpost = false;
@@ -6220,6 +6265,7 @@ function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $
             forum_print_post_end($post);
             echo "</div>\n";
         }
+        
     }
 }
 
@@ -7528,6 +7574,15 @@ function forum_reset_course_form_defaults($course) {
 }
 
 /**
+ * Returns array of forum attempt modes
+ *
+ * @return array
+ */
+function forum_get_attempt() {
+    return array (get_string('viewdraftattempt', 'forum'),
+                    get_string('firstpostattempt', 'forum'));
+}
+/**
  * Returns array of forum layout modes
  *
  * @return array
@@ -8730,3 +8785,18 @@ function mod_forum_get_completion_active_rule_descriptions($cm) {
     }
     return $descriptions;
 }
+// function check_user_role($cmid ,$userid) {
+//     $context = context_module::instance($cmid);
+//     $roles = get_user_roles($context, $userid, true);
+//     foreach($roles as $namerole) {
+//         $allroles[] = $namerole->shortname;
+//     }
+//     //echo '<pre>'; print_r($roles); exit; 
+//     if(!empty($allroles)) {
+//         if(in_array("manager", $allroles) and in_array("editingteacher", $allroles)) {
+//             return true;
+//         }
+
+//     }
+
+// }

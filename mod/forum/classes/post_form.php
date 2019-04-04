@@ -93,11 +93,11 @@ class mod_forum_post_form extends moodleform {
         $subscribe = $this->_customdata['subscribe'];
         $edit = $this->_customdata['edit'];
         $sthread = $this->_customdata['sthread'];
-        $firstpostid = $this->_customdata['firstpostid']; // to do
+        $firstpostid = $this->_customdata['firstpostid']; // TODO:
         $thresholdwarning = $this->_customdata['thresholdwarning'];
         $mform->addElement('header', 'general', '');//fill in the data depending on page params later using set_data
-
         // If there is a warning message and we are not editing a post we need to handle the warning.
+        //echo $firstpostid; exit;
         if (!empty($thresholdwarning) && !$edit) {
             // Here we want to display a warning if they can still post but have reached the warning threshold.
             if ($thresholdwarning->canpost) {
@@ -253,9 +253,11 @@ class mod_forum_post_form extends moodleform {
         } else {
             $submit_string = get_string('posttoforum', 'forum');
         }
-        if($forum->type == 'qanda' and !$sthread) {
+       //echo $post->id; exit;
+       //echo '<pre>'; print_r($post); exit; 
+       if($forum->type == 'qanda' and !$sthread) {
             $buttonarray=array();
-            if($post->parent == $firstpostid) {
+            if($post->parent == $firstpostid and $post->parent !== 0) {
                 $buttonarray[] =& $mform->createElement('submit', 'savedraft', get_string('savedraft', 'mod_forum'));
             }
             $buttonarray[] =& $mform->createElement('submit', 'submitbutton', $submit_string);
@@ -285,6 +287,9 @@ class mod_forum_post_form extends moodleform {
         
         $mform->addElement('hidden', 'sthread');
         $mform->setType('sthread', PARAM_INT);
+        
+        $mform->addElement('hidden', 'firstpostid');
+        $mform->setType('firstpostid', PARAM_INT);
 
         $mform->addElement('hidden', 'reply');
         $mform->setType('reply', PARAM_INT);

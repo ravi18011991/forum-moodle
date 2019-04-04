@@ -34,7 +34,9 @@ $move   = optional_param('move', 0, PARAM_INT);          // If set, moves this d
 $mark   = optional_param('mark', '', PARAM_ALPHA);       // Used for tracking read posts if user initiated.
 $postid = optional_param('postid', 0, PARAM_INT);        // Used for tracking read posts if user initiated.
 $pin    = optional_param('pin', -1, PARAM_INT);          // If set, pin or unpin this discussion.
-
+$confirm = optional_param('confirm', 0, PARAM_INT); 
+$confirmdraft    = optional_param('confirmdraft', 0, PARAM_INT);
+//echo $confirmdraft;
 $url = new moodle_url('/mod/forum/discuss.php', array('d'=>$d));
 $surl = new moodle_url('/mod/forum/discuss.php', array('d'=> $d, 'sthread' => $sthread));
 if ($parent !== 0) {
@@ -67,7 +69,6 @@ if (!empty($CFG->enablerssfeeds) && !empty($CFG->forum_enablerssfeeds) && $forum
     $rsstitle = format_string($course->shortname, true, array('context' => context_course::instance($course->id))) . ': ' . format_string($forum->name);
     rss_add_http_header($modcontext, 'mod_forum', $forum, $rsstitle);
 }
-
 // Move discussion if requested.
 if ($move > 0 and confirm_sesskey()) {
     $return = $CFG->wwwroot.'/mod/forum/discuss.php?d='.$discussion->id;
@@ -202,7 +203,33 @@ if ($pin !== -1 && confirm_sesskey()) {
 
     redirect(new moodle_url('/mod/forum/discuss.php', array('d' => $discussion->id)));
 }
-
+if($forum->type == 'qanda' and $confirmdraft) { // Confirm Draft post by teacher.
+    //$PAGE->set_url('/mod/forum/discuss.php', array('d' => $discussion->id));
+    require_login($course, false, $cm);
+    //$modcontext = context_module::instance($cm->id);
+    $submiturl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));
+    $returnurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));                 
+    if ($confirm != $confirmdraft) {
+        echo $OUTPUT->header();
+        echo $OUTPUT->heading(format_string($forum->name));
+        $optionsyes = array('confirmdraft' => $confirmdraft, 'confirm' => $confirmdraft,'sesskey' => sesskey());
+                        echo $OUTPUT->confirm(get_string('draftpostconfirmation', 'mod_forum'),
+                            new moodle_url($submiturl, $optionsyes), $returnurl);
+        echo $OUTPUT->footer();
+        die;
+    } else if(data_submitted()) {
+        //if(!has_capability('mod/forum:viewqandawithoutposting', $modcontext) {
+        $sql = "UPDATE {forum_posts}
+            SET created = ?,
+                modified = ?
+            WHERE created = ? AND discussion = ?";
+        $sucess = $DB->execute($sql, array(time(), time(), 0, $discussion->id));
+        if($sucess){
+           // \core\session\manager::gc(); // Remove stale sessions.
+            redirect($returnurl);
+        }
+    }
+}   
 // Trigger discussion viewed event.
 forum_discussion_view($modcontext, $forum, $discussion);
 
@@ -278,8 +305,6 @@ if ((!is_guest($modcontext, $USER) && isloggedin()) && has_capability('mod/forum
         echo forum_get_discussion_subscription_icon_preloaders();
     }
 }
-
-
 /// Check to see if groups are being used in this forum
 /// If so, make sure the current person is allowed to see this discussion
 /// Also, if we know they should be able to reply, then explicitly set $canreply for performance reasons
@@ -323,6 +348,8 @@ if (!empty($CFG->enableportfolios) && has_capability('mod/forum:exportdiscussion
 // groups selector not needed here
 echo '<div class="discussioncontrol displaymode">';
 forum_print_mode_form($discussion->id, $displaymode);
+echo '&nbsp &nbsp';
+forum_print_attempt_form($discussion->id, $displaymode, $forum->type);
 echo "</div>";
 
 if ($forum->type != 'single'
@@ -368,7 +395,7 @@ if ($forum->type != 'single'
 if (has_capability('mod/forum:pindiscussions', $modcontext)) {
     if ($discussion->pinned == FORUM_DISCUSSION_PINNED) {
         $pinlink = FORUM_DISCUSSION_UNPINNED;
-        $pintext = get_string('discussionunpin', 'forum');
+        $pintext = get_string('discussionunpin', 'forum'); 
     } else {
         $pinlink = FORUM_DISCUSSION_PINNED;
         $pintext = get_string('discussionpin', 'forum');
@@ -377,6 +404,11 @@ if (has_capability('mod/forum:pindiscussions', $modcontext)) {
     echo html_writer::tag('div', $OUTPUT->render($button), array('class' => 'discussioncontrol pindiscussion'));
 }
 
+if (has_capability('mod/forum:viewqandawithoutposting', $modcontext) and $forum->type == 'qanda') {
+    $confirmdraftpost = get_string('confirmdraftpost', 'forum'); 
+    $confirmdraftbutton = new single_button(new moodle_url('discuss.php', array('d' => $discussion->id,'confirmdraft' => true)), $confirmdraftpost, 'get');
+    echo html_writer::tag('div', $OUTPUT->render($confirmdraftbutton), array('class' => 'discussioncontrol pindiscussion'));
+}
 
 echo "</div></div>";
 

@@ -27,7 +27,7 @@ if ($ADMIN->fulltree) {
     require_once($CFG->dirroot.'/mod/forum/lib.php');
 
     $settings->add(new admin_setting_configselect('forum_displaymode', get_string('displaymode', 'forum'),
-                       get_string('configdisplaymode', 'forum'), FORUM_MODE_NESTED, forum_get_layout_modes()));
+                     get_string('configdisplaymode', 'forum'), FORUM_MODE_NESTED, forum_get_layout_modes()));
 
     // Less non-HTML characters than this is short
     $settings->add(new admin_setting_configtext('forum_shortpost', get_string('shortpost', 'forum'),

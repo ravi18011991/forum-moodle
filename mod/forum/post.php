@@ -32,10 +32,12 @@ $edit    = optional_param('edit', 0, PARAM_INT);
 $delete  = optional_param('delete', 0, PARAM_INT);
 $prune   = optional_param('prune', 0, PARAM_INT);
 $name    = optional_param('name', '', PARAM_CLEAN);
-$confirm = optional_param('confirm', 0, PARAM_INT);
-//$confirm = optional_param('confirm', '', PARAM_ALPHANUM); 
+$draftedit = optional_param('draftedit', 0, PARAM_INT); 
+$confirm = optional_param('confirm', 0, PARAM_INT); 
 $pconfirm = optional_param('pconfirm', 0, PARAM_INT); // TODO: boolean
-
+$attempt = optional_param('attempt', 0, PARAM_INT); // TODO: boolean
+//$firstpost = optional_param('firstpostid', 0, PARAM_INT);
+//echo $attempt; exit;
 //echo $pconfirm; exit; 
 $groupid = optional_param('groupid', null, PARAM_INT);
 
@@ -47,13 +49,15 @@ $PAGE->set_url('/mod/forum/post.php', array(
     'delete' => $delete,
     'prune' => $prune,
     'name'  => $name,
+    'draftedit' => $draftedit,
     'confirm' => $confirm,
     'pconfirm' => $pconfirm,
+    'attempt' => $attempt, 
     'groupid' => $groupid,
 ));
 //echo $s; exit;
 // These page_params will be passed as hidden variables later in the form.
-$pageparams = array('reply' => $reply, 'sthread' => $sthread,'forum' => $forum, 'edit' => $edit,  'pconfirm' => $pconfirm);
+$pageparams = array('reply' => $reply, 'sthread' => $sthread,'forum' => $forum, 'edit' => $edit,  'pconfirm' => $pconfirm, 'attempt' => $attempt);
 
 $sitecontext = context_system::instance();
 
@@ -184,7 +188,21 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     // Retrieve the contexts.
     $modcontext    = context_module::instance($cm->id);
     $coursecontext = context_course::instance($course->id);
-
+    if($forum->type == 'qanda' and $attempt) {
+        require_login($course, false, $cm);
+        //$modcontext = context_module::instance($cm->id);
+        $submiturl = new moodle_url("/mod/forum/post.php#mformforum", array('reply' => $attempt));
+        $returnurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));                 
+        if ($confirm != $attempt) {
+            echo $OUTPUT->header();
+            echo $OUTPUT->heading(format_string($forum->name));
+            $optionsyes = array('attempt' => $attempt, 'confirm' => $attempt,'sesskey' => sesskey());
+                            echo $OUTPUT->confirm(get_string('attemptpost', 'mod_forum'),
+                                new moodle_url($submiturl, $optionsyes), $returnurl);
+            echo $OUTPUT->footer();
+            die;
+        }
+    }   
     if (! forum_user_can_post($forum, $discussion, $USER, $cm, $course, $modcontext)) {
         if (!isguestuser()) {
             if (!is_enrolled($coursecontext)) {  // User is a guest here!
@@ -285,13 +303,15 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     }
 
     $PAGE->set_cm($cm, $course, $forum);
-
-    if (!($forum->type == 'news' && !$post->parent && $discussion->timestart > time())) {
-        if (((time() - $post->created) > $CFG->maxeditingtime) and
-            !has_capability('mod/forum:editanypost', $modcontext)) {
-            print_error('maxtimehaspassed', 'forum', '', format_time($CFG->maxeditingtime));
+    // echo $draftedit; exit;
+    if($forum->type == 'qanda' and !$draftedit) { // Handling for draft post.
+        if (!($forum->type == 'news' && !$post->parent && $discussion->timestart > time())) {
+            if (((time() - $post->created) > $CFG->maxeditingtime) and
+                !has_capability('mod/forum:editanypost', $modcontext)) {
+                print_error('maxtimehaspassed', 'forum', '', format_time($CFG->maxeditingtime));
+            }
         }
-    }
+    }   
     if (($post->userid <> $USER->id) and
         !has_capability('mod/forum:editanypost', $modcontext)) {
         print_error('cannoteditposts', 'forum');
@@ -337,7 +357,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
                             new moodle_url($submiturl, $optionsyes), $returnurl);
         echo $OUTPUT->footer();
         die;
-    } else if(data_submitted()) {
+    } else if(data_submitted()) { // TODO: for query
         //echo 'ravi'; exit;
         // $data = new stdClass();
         // $data->created = time();
@@ -381,7 +401,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
     if (!empty($confirm) && confirm_sesskey()) {    // User has confirmed the delete.
         // Check user capability to delete post.
-        echo 'ravi'.$sthread;
         $timepassed = time() - $post->created;
         if (($timepassed > $CFG->maxeditingtime) && !has_capability('mod/forum:deleteanypost', $modcontext)) {
             print_error("cannotdeletepost", "forum",
@@ -653,7 +672,11 @@ if (isguestuser()) {
 if (!isset($forum->maxattachments)) {  // TODO - delete this once we add a field to the forum table.
     $forum->maxattachments = 3;
 }
-
+if(!empty($discussion)) {
+   $firstpost = $discussion->firstpost;
+} else {
+    $firstpost = 0;
+}
 $thresholdwarning = forum_check_throttling($forum, $cm);
 $mformpost = new mod_forum_post_form('post.php', array('course' => $course,
     'cm' => $cm,
@@ -662,7 +685,7 @@ $mformpost = new mod_forum_post_form('post.php', array('course' => $course,
     'forum' => $forum,
     'post' => $post,
     'sthread' => $sthread,
-    'firstpostid' => !empty($discussion->firstpost),
+    'firstpostid' => $firstpost,
     'subscribe' => \mod_forum\subscriptions::is_subscribed($USER->id, $forum,
         null, $cm),
     'thresholdwarning' => $thresholdwarning,
