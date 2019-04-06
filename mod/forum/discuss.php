@@ -30,12 +30,12 @@ $d      = required_param('d', PARAM_INT);                // Discussion ID
 $sthread = optional_param('sthread', 0, PARAM_INT);                // Discussion ID
 $parent = optional_param('parent', 0, PARAM_INT);        // If set, then display this post and all children.
 $mode   = optional_param('mode', 0, PARAM_INT);          // If set, changes the layout of the thread
+$attemptdisplaymode = optional_param('attemptdisplaymode', 0, PARAM_INT); 
 $move   = optional_param('move', 0, PARAM_INT);          // If set, moves this discussion to another forum
 $mark   = optional_param('mark', '', PARAM_ALPHA);       // Used for tracking read posts if user initiated.
 $postid = optional_param('postid', 0, PARAM_INT);        // Used for tracking read posts if user initiated.
 $pin    = optional_param('pin', -1, PARAM_INT);          // If set, pin or unpin this discussion.
 $confirm = optional_param('confirm', 0, PARAM_INT); 
-$confirmdraft    = optional_param('confirmdraft', 0, PARAM_INT);
 //echo $confirmdraft;
 $url = new moodle_url('/mod/forum/discuss.php', array('d'=>$d));
 $surl = new moodle_url('/mod/forum/discuss.php', array('d'=> $d, 'sthread' => $sthread));
@@ -44,10 +44,8 @@ if ($parent !== 0) {
 }
 if ($d) { // To do 
     $PAGE->set_url($url);
-    //$id = $id;
 } else if (!empty($d) && !empty($sthread)){ // Secondary discussion page.
     $PAGE->set_url($surl);
-   // $d = $s;
 }
 
 $discussion = $DB->get_record('forum_discussions', array('id' => $d), '*', MUST_EXIST);
@@ -203,33 +201,33 @@ if ($pin !== -1 && confirm_sesskey()) {
 
     redirect(new moodle_url('/mod/forum/discuss.php', array('d' => $discussion->id)));
 }
-if($forum->type == 'qanda' and $confirmdraft) { // Confirm Draft post by teacher.
-    //$PAGE->set_url('/mod/forum/discuss.php', array('d' => $discussion->id));
-    require_login($course, false, $cm);
-    //$modcontext = context_module::instance($cm->id);
-    $submiturl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));
-    $returnurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));                 
-    if ($confirm != $confirmdraft) {
-        echo $OUTPUT->header();
-        echo $OUTPUT->heading(format_string($forum->name));
-        $optionsyes = array('confirmdraft' => $confirmdraft, 'confirm' => $confirmdraft,'sesskey' => sesskey());
-                        echo $OUTPUT->confirm(get_string('draftpostconfirmation', 'mod_forum'),
-                            new moodle_url($submiturl, $optionsyes), $returnurl);
-        echo $OUTPUT->footer();
-        die;
-    } else if(data_submitted()) {
-        //if(!has_capability('mod/forum:viewqandawithoutposting', $modcontext) {
-        $sql = "UPDATE {forum_posts}
-            SET created = ?,
-                modified = ?
-            WHERE created = ? AND discussion = ?";
-        $sucess = $DB->execute($sql, array(time(), time(), 0, $discussion->id));
-        if($sucess){
-           // \core\session\manager::gc(); // Remove stale sessions.
-            redirect($returnurl);
-        }
-    }
-}   
+// if($forum->type == 'qanda' and $confirmdraft) { // Confirm Draft post by teacher.
+//     //$PAGE->set_url('/mod/forum/discuss.php', array('d' => $discussion->id));
+//     require_login($course, false, $cm);
+//     //$modcontext = context_module::instance($cm->id);
+//     $submiturl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));
+//     $returnurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));                 
+//     if ($confirm != $confirmdraft) {
+//         echo $OUTPUT->header();
+//         echo $OUTPUT->heading(format_string($forum->name));
+//         $optionsyes = array('confirmdraft' => $confirmdraft, 'confirm' => $confirmdraft,'sesskey' => sesskey());
+//                         echo $OUTPUT->confirm(get_string('draftpostconfirmation', 'mod_forum'),
+//                             new moodle_url($submiturl, $optionsyes), $returnurl);
+//         echo $OUTPUT->footer();
+//         die;
+//     } else if(data_submitted()) {
+//         //if(!has_capability('mod/forum:viewqandawithoutposting', $modcontext) {
+//         $sql = "UPDATE {forum_posts}
+//             SET created = ?,
+//                 modified = ?
+//             WHERE created = ? AND discussion = ?";
+//         $sucess = $DB->execute($sql, array(time(), time(), 0, $discussion->id));
+//         if($sucess){
+//            // \core\session\manager::gc(); // Remove stale sessions.
+//             redirect($returnurl);
+//         }
+//     }
+// }   
 // Trigger discussion viewed event.
 forum_discussion_view($modcontext, $forum, $discussion);
 
@@ -238,9 +236,12 @@ unset($SESSION->fromdiscussion);
 if ($mode) {
     set_user_preference('forum_displaymode', $mode);
 }
-
+// chnages for filters
+if ($attemptdisplaymode) { // TODO: attemptdisplaymode.
+    set_user_preference('forum_attemptdisplaymode', $attemptdisplaymode);
+}
 $displaymode = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
-
+//echo '<pre>'; print_r($parent);
 if ($parent) {
     // If flat AND parent, then force nested display this time
     if ($displaymode == FORUM_MODE_FLATOLDEST or $displaymode == FORUM_MODE_FLATNEWEST) {
@@ -348,8 +349,10 @@ if (!empty($CFG->enableportfolios) && has_capability('mod/forum:exportdiscussion
 // groups selector not needed here
 echo '<div class="discussioncontrol displaymode">';
 forum_print_mode_form($discussion->id, $displaymode);
-echo '&nbsp &nbsp';
-forum_print_attempt_form($discussion->id, $displaymode, $forum->type);
+echo '&nbsp &nbsp'; // TODO: UI rearrange.
+if($forum->type == 'qanda' and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+    forum_print_attempt_form($discussion->id, $attemptdisplaymode, $forum->type);
+}
 echo "</div>";
 
 if ($forum->type != 'single'
@@ -404,11 +407,11 @@ if (has_capability('mod/forum:pindiscussions', $modcontext)) {
     echo html_writer::tag('div', $OUTPUT->render($button), array('class' => 'discussioncontrol pindiscussion'));
 }
 
-if (has_capability('mod/forum:viewqandawithoutposting', $modcontext) and $forum->type == 'qanda') {
-    $confirmdraftpost = get_string('confirmdraftpost', 'forum'); 
-    $confirmdraftbutton = new single_button(new moodle_url('discuss.php', array('d' => $discussion->id,'confirmdraft' => true)), $confirmdraftpost, 'get');
-    echo html_writer::tag('div', $OUTPUT->render($confirmdraftbutton), array('class' => 'discussioncontrol pindiscussion'));
-}
+// if (has_capability('mod/forum:viewqandawithoutposting', $modcontext) and $forum->type == 'qanda') {
+//     $confirmdraftpost = get_string('confirmdraftpost', 'forum'); 
+//     $confirmdraftbutton = new single_button(new moodle_url('discuss.php', array('d' => $discussion->id,'confirmdraft' => true)), $confirmdraftpost, 'get');
+//     echo html_writer::tag('div', $OUTPUT->render($confirmdraftbutton), array('class' => 'discussioncontrol pindiscussion'));
+// }
 
 echo "</div></div>";
 
@@ -437,7 +440,7 @@ if ($move == -1 and confirm_sesskey()) {
 
 $canrate = has_capability('mod/forum:rate', $modcontext);
 //echo $sthread; exit;
-forum_print_discussion($course, $cm, $forum, $discussion, $post, $displaymode, $canreply, $canrate, $sthread);
+forum_print_discussion($course, $cm, $forum, $discussion, $post, $displaymode, $canreply, $canrate, $sthread, $attemptdisplaymode);
 
 echo $neighbourlinks;
 

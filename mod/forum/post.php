@@ -26,7 +26,7 @@ require_once('../../config.php');
 require_once('lib.php');
 require_once($CFG->libdir.'/completionlib.php');
 $reply   = optional_param('reply', 0, PARAM_INT);
-$sthread = optional_param('sthread', 0, PARAM_INT); // To do.
+$sthread = optional_param('sthread', 0, PARAM_INT); // TODO:for boolean.
 $forum   = optional_param('forum', 0, PARAM_INT);
 $edit    = optional_param('edit', 0, PARAM_INT);
 $delete  = optional_param('delete', 0, PARAM_INT);
@@ -36,9 +36,6 @@ $draftedit = optional_param('draftedit', 0, PARAM_INT);
 $confirm = optional_param('confirm', 0, PARAM_INT); 
 $pconfirm = optional_param('pconfirm', 0, PARAM_INT); // TODO: boolean
 $attempt = optional_param('attempt', 0, PARAM_INT); // TODO: boolean
-//$firstpost = optional_param('firstpostid', 0, PARAM_INT);
-//echo $attempt; exit;
-//echo $pconfirm; exit; 
 $groupid = optional_param('groupid', null, PARAM_INT);
 
 $PAGE->set_url('/mod/forum/post.php', array(
@@ -247,7 +244,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->userid      = $USER->id;
     //echo $discussion->firstpost;
     //echo '<pre>'; print_r($post); exit;
-    if($forum->type == 'qanda'and $discussion->firstpost==$post->parent and !$sthread) { // to do for li condition
+    if($forum->type == 'qanda'and $discussion->firstpost == $post->parent and !$sthread) { // to do for li condition
         $question = $DB->get_field('forum_posts', 'message', array('id'=> $discussion->firstpost));
         $table = '<table>
         <tbody>

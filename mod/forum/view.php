@@ -28,6 +28,7 @@
     $id          = optional_param('id', 0, PARAM_INT);       // Course Module ID
     $f           = optional_param('f', 0, PARAM_INT);        // Forum ID
     $mode        = optional_param('mode', 0, PARAM_INT);     // Display mode (for single forum)
+   // $attemptmode = optional_param('attemptmode', 0, PARAM_INT);     // Display mode (for single forum)
     $showall     = optional_param('showall', '', PARAM_INT); // show all discussions on one page
     $changegroup = optional_param('group', -1, PARAM_INT);   // choose the current group
     $page        = optional_param('page', 0, PARAM_INT);     // which page to show

@@ -38,6 +38,11 @@ define('FORUM_FORCESUBSCRIBE', 1);
 define('FORUM_INITIALSUBSCRIBE', 2);
 define('FORUM_DISALLOWSUBSCRIBE',3);
 
+define('FORUM_VIEW_ATTEMPT_DEFAULT_POST', 4);
+define('FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT', 5);
+define('FORUM_SHOW_DRAFT_POST_ONLY', 6);
+//define('FORUM_DISALLOWSUBSCRIBE',3);
+
 /**
  * FORUM_TRACKING_OFF - Tracking is not available for this forum.
  */
@@ -3419,7 +3424,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->parent       = get_string('parent', 'forum');
         $str->pruneheading = get_string('pruneheading', 'forum');
         $str->prune        = get_string('prune', 'forum');
-        $str->displaymode     = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
+        $str->displaymode  = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
         $str->markread     = get_string('markread', 'forum');
         $str->markunread   = get_string('markunread', 'forum');
     }
@@ -4300,17 +4305,17 @@ function forum_print_mode_form($id, $mode, $forumtype='') {
 
 /**
  * Print the drop down that allows the user to select how they want to have
- * the discussion displayed.
+ * the attempt displayed.
  *
  * @param int $id forum id if $forumtype is 'single',
  *              discussion id for any other forum type
  * @param mixed $mode forum layout mode
  * @param string $forumtype optional
  */
-function forum_print_attempt_form($id, $mode, $forumtype) {
+function forum_print_attempt_form($id, $attemptdisplaymode, $forumtype) {
     global $OUTPUT;
     if ($forumtype == 'qanda') {
-        $select = new single_select(new moodle_url("/mod/forum/view.php", array('f'=>$id)), 'mode', forum_get_attempt(), $mode, null, "mode");
+        $select = new single_select(new moodle_url("/mod/forum/discuss.php", array('d'=>$id)), 'attemptdisplaymode', forum_get_attempt(), $attemptdisplaymode, null, "attemptdisplaymode");
         $select->set_label(get_string('displaymode', 'forum'), array('class' => 'accesshide'));
         $select->class = "forummode";
     } 
@@ -5299,16 +5304,15 @@ function forum_discussions_user_has_posted_in($forumid, $userid) {
  */
 function forum_user_has_posted($forumid, $did, $userid) {
     global $DB;
-
     if (empty($did)) {
         // posted in any forum discussion?
         $sql = "SELECT 'x'
                   FROM {forum_posts} p
                   JOIN {forum_discussions} d ON d.id = p.discussion
-                 WHERE p.userid = :userid AND d.forum = :forumid AND p.parent > 0"; // P.parent > o because of secondary thread.
-        return $DB->record_exists_sql($sql, array('forumid'=>$forumid,'userid'=>$userid));
+                 WHERE p.userid = :userid AND d.forum = :forumid AND p.parent > :parent"; // P.parent > o because of secondary thread.
+        return $DB->record_exists_sql($sql, array('forumid'=>$forumid,'userid'=>$userid, 'parent' => 0));
     } else {
-        return $DB->record_exists('forum_posts', array('discussion'=>$did,'userid'=>$userid));
+        return $DB->record_exists('forum_posts', array('discussion'=>$did,'userid'=>$userid,'parent' => 0));
     }
 }
 
@@ -6016,7 +6020,7 @@ function forum_print_latest_discussions($course, $forum, $maxdiscussions = -1, $
  * @param mixed $canreply
  * @param bool $canrate
  */
-function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode, $canreply=NULL, $canrate=false, $sthread = false) {
+function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode, $canreply=NULL, $canrate=false, $sthread = false, $attemptdisplaymode = false) {
     global $USER, $CFG;
     //echo $discussion->firstpost; 
     require_once($CFG->dirroot.'/rating/lib.php');
@@ -6105,19 +6109,15 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
         default: // TODO: inconginto.
             forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts, $sthread); 
             break;
-
         case FORUM_MODE_THREADED :
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts, $sthread);
+            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts, $sthread, $attemptdisplaymode);
             break;
-
         case FORUM_MODE_NESTED :
-            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts, $sthread);
+            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts, $sthread, $attemptdisplaymode);
             break;
     }
     forum_print_post_end($post);
 }
-
-
 /**
  * @global object
  * @global object
@@ -6135,9 +6135,8 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
  */
 function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts , $sthread = false) {
     global $USER, $CFG;
-
+    echo $sthread;
     $link  = false;
-
     foreach ($posts as $post) {
         if (!$post->parent) {
             continue;
@@ -6162,19 +6161,23 @@ function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode
  * @uses CONTEXT_MODULE
  * @return void
  */
-function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent, $depth, $reply, $forumtracked, $posts, $sthread = false) {
+function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent, $depth, $reply, $forumtracked, $posts, $sthread = false, $attemptdisplaymode =false) {
     global $USER, $CFG;
-
     $link  = false;
-
     if (!empty($posts[$parent->id]->children)) {
         $posts = $posts[$parent->id]->children;
-
         $modcontext       = context_module::instance($cm->id);
         $canviewfullnames = has_capability('moodle/site:viewfullnames', $modcontext);
-
         foreach ($posts as $post) {
-
+                if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
+                    continue; 
+                }
+                if($attemptdisplaymode == FORUM_VIEW_ATTEMPT_DEFAULT_POST and $post->created == 0) { 
+                    continue;
+                }
+                if($attemptdisplaymode == FORUM_SHOW_DRAFT_POST_ONLY and $post->created > 0) {
+                    continue;
+                }
             echo '<div class="indent">';
             if ($depth > 0) {
                 $ownpost = ($USER->id == $post->userid);
@@ -6225,7 +6228,7 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
                 echo "</span>";
             }
 
-            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts, $sthread);
+            forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, $depth-1, $reply, $forumtracked, $posts, $sthread, $attemptdisplaymode);
             echo "</div>\n";
         }
     }
@@ -6237,15 +6240,110 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
  * @global object
  * @return void
  */
-function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts, $sthread = false) {  
+// function forum_view_only_posted($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts, $sthread = false) {  
+//     global $USER, $CFG;
+//     $link = false;
+//     //echo '<pre>'; print_r($posts); exit;
+//     $modcontext = context_module::instance($cm->id);
+//     if (!empty($posts[$parent->id]->children)) {
+//         $posts = $posts[$parent->id]->children;        
+//         foreach ($posts as $post) {
+//             //TODO: check capability. test teacher can reply even draft post.
+//             if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+//                 continue;
+//             }
+//             if($post->parent !== $discussion->firstpost) {
+//                 continue;
+//             }
+//             echo '<div class="indent">';
+//             if (!isloggedin()) {
+//                 $ownpost = false;
+//             } else {
+//                 $ownpost = ($USER->id == $post->userid);
+//             }
+
+//             $post->subject = format_string($post->subject);
+//             $postread = !empty($post->postread);
+
+//             forum_print_post_start($post);
+//             forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
+//                                  '', '', $postread, true, $forumtracked, $sthread);
+//             forum_view_only_posted($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread);
+//             forum_print_post_end($post);
+//             echo "</div>\n";
+//         }
+        
+//     }
+// }
+
+/**
+ * @todo Document this function
+ * @global object
+ * @global object
+ * @return void
+ */
+// function forum_view_only_posted_notdraft($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts, $sthread = false) {  
+//     global $USER, $CFG;
+//     $link = false;
+//     //echo '<pre>'; print_r($posts); exit;
+//     $modcontext = context_module::instance($cm->id);
+//     if (!empty($posts[$parent->id]->children)) {
+//         $posts = $posts[$parent->id]->children;        
+//         foreach ($posts as $post) {
+//             //TODO: check capability. test teacher can reply even draft post.
+//             if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+//                 continue;
+//             }
+//             if($post->parent !== $discussion->firstpost or $post->created == 0) {
+//                 continue;
+//             }
+//             echo '<div class="indent">';
+//             if (!isloggedin()) {
+//                 $ownpost = false;
+//             } else {
+//                 $ownpost = ($USER->id == $post->userid);
+//             }
+
+//             $post->subject = format_string($post->subject);
+//             $postread = !empty($post->postread);
+
+//             forum_print_post_start($post);
+//             forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
+//                                  '', '', $postread, true, $forumtracked, $sthread);
+//             forum_view_only_posted_notdraft($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread);
+//             forum_print_post_end($post);
+//             echo "</div>\n";
+//         }
+        
+//     }
+// }
+
+
+/**
+ * @todo Document this function
+ * @global object
+ * @global object
+ * @return void
+ */
+ function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $reply, $forumtracked, $posts, $sthread = false, $attemptdisplaymode = false) {  
     global $USER, $CFG;
     $link = false;
     $modcontext = context_module::instance($cm->id);
-    if (!empty($posts[$parent->id]->children)) {
-        $posts = $posts[$parent->id]->children;        
+    if (!empty($posts[$parent->id]->children)) {       
+        $posts = $posts[$parent->id]->children; 
+        //echo '<pre>'; print_r($posts); exit;       
         foreach ($posts as $post) {
             //TODO: check capability. test teacher can reply even draft post.
             if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+                continue;
+            }                    
+            if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
+                continue; 
+            }
+            if($attemptdisplaymode == FORUM_VIEW_ATTEMPT_DEFAULT_POST and $post->created == 0) { 
+                continue;
+            }
+            if($attemptdisplaymode == FORUM_SHOW_DRAFT_POST_ONLY and $post->created > 0) {
                 continue;
             }
             echo '<div class="indent">';
@@ -6254,14 +6352,13 @@ function forum_print_posts_nested($course, &$cm, $forum, $discussion, $parent, $
             } else {
                 $ownpost = ($USER->id == $post->userid);
             }
-
             $post->subject = format_string($post->subject);
             $postread = !empty($post->postread);
 
             forum_print_post_start($post);
             forum_print_post($post, $discussion, $forum, $cm, $course, $ownpost, $reply, $link,
                                  '', '', $postread, true, $forumtracked, $sthread);
-            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread);
+            forum_print_posts_nested($course, $cm, $forum, $discussion, $post, $reply, $forumtracked, $posts,  $sthread,  $attemptdisplaymode);            
             forum_print_post_end($post);
             echo "</div>\n";
         }
@@ -7572,15 +7669,15 @@ function forum_reset_course_form_definition(&$mform) {
 function forum_reset_course_form_defaults($course) {
     return array('reset_forum_all'=>1, 'reset_forum_digests' => 0, 'reset_forum_subscriptions'=>0, 'reset_forum_track_prefs'=>0, 'reset_forum_ratings'=>1);
 }
-
 /**
  * Returns array of forum attempt modes
  *
  * @return array
  */
 function forum_get_attempt() {
-    return array (get_string('viewdraftattempt', 'forum'),
-                    get_string('firstpostattempt', 'forum'));
+    return array (FORUM_VIEW_ATTEMPT_DEFAULT_POST => get_string('viewdefaultpost', 'forum'),
+            FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT => get_string('viewdraftincludingattempt', 'forum'),
+            FORUM_SHOW_DRAFT_POST_ONLY => get_string('showdraftpostonly', 'forum'));
 }
 /**
  * Returns array of forum layout modes
@@ -8785,18 +8882,3 @@ function mod_forum_get_completion_active_rule_descriptions($cm) {
     }
     return $descriptions;
 }
-// function check_user_role($cmid ,$userid) {
-//     $context = context_module::instance($cmid);
-//     $roles = get_user_roles($context, $userid, true);
-//     foreach($roles as $namerole) {
-//         $allroles[] = $namerole->shortname;
-//     }
-//     //echo '<pre>'; print_r($roles); exit; 
-//     if(!empty($allroles)) {
-//         if(in_array("manager", $allroles) and in_array("editingteacher", $allroles)) {
-//             return true;
-//         }
-
-//     }
-
-// }
