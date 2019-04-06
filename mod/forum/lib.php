@@ -6107,7 +6107,7 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
         case FORUM_MODE_FLATOLDEST :
         case FORUM_MODE_FLATNEWEST :
         default: // TODO: inconginto.
-            forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts, $sthread); 
+            forum_print_posts_flat($course, $cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts, $sthread, $attemptdisplaymode); 
             break;
         case FORUM_MODE_THREADED :
             forum_print_posts_threaded($course, $cm, $forum, $discussion, $post, 0, $reply, $forumtracked, $posts, $sthread, $attemptdisplaymode);
@@ -6133,12 +6133,24 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
  * @param array $posts
  * @return void
  */
-function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts , $sthread = false) {
+function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts , $sthread = false, $attemptdisplaymode = false) {
     global $USER, $CFG;
     echo $sthread;
     $link  = false;
     foreach ($posts as $post) {
+        if ($post->parent < 0) { // Handle for secondary thread.
+            continue;
+        }
         if (!$post->parent) {
+            continue;
+        }
+        if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
+            continue; 
+        }
+        if($attemptdisplaymode == FORUM_VIEW_ATTEMPT_DEFAULT_POST and $post->created == 0) { 
+            continue;
+        }
+        if($attemptdisplaymode == FORUM_SHOW_DRAFT_POST_ONLY and $post->created > 0) {
             continue;
         }
         $post->subject = format_string($post->subject);
