@@ -352,6 +352,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
         $optionsyes = array('pconfirm' => $pconfirm, 'confirm' => $pconfirm,'sesskey' => sesskey());
                         echo $OUTPUT->confirm(get_string('confirmpost', 'mod_forum'),
                             new moodle_url($submiturl, $optionsyes), $returnurl);
+        forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
         echo $OUTPUT->footer();
         die;
     } else if(data_submitted()) { // TODO: for query
@@ -398,12 +399,14 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
 
     if (!empty($confirm) && confirm_sesskey()) {    // User has confirmed the delete.
         // Check user capability to delete post.
-        $timepassed = time() - $post->created;
-        if (($timepassed > $CFG->maxeditingtime) && !has_capability('mod/forum:deleteanypost', $modcontext)) {
-            print_error("cannotdeletepost", "forum",
-                forum_go_back_to(new moodle_url("/mod/forum/discuss.php", array('d' => $post->discussion))));
+        //echo $post->created;
+        if($post->created > 0) { // Mangage darft post. 
+            $timepassed = time() - $post->created;
+            if (($timepassed > $CFG->maxeditingtime) && !has_capability('mod/forum:deleteanypost', $modcontext)) {
+                print_error("cannotdeletepost", "forum",
+                    forum_go_back_to(new moodle_url("/mod/forum/discuss.php", array('d' => $post->discussion))));
+            }
         }
-
         if ($post->totalscore) {
             notice(get_string('couldnotdeleteratings', 'rating'),
                 forum_go_back_to(new moodle_url("/mod/forum/discuss.php", array('d' => $post->discussion))));

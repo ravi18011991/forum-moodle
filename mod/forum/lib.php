@@ -3534,8 +3534,10 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     if($forum->type == 'qanda') {
         if($discussion->firstpost == $post->id) {                        
             //forum_discussions_user_has_posted_in($forum->id, $USER->id); 
+            //echo  '<pre>'; print_r($post); exit;
             //echo '<pre>'; print_r(forum_user_has_posted($forum->id, $discussion->id, $USER->id)); exit;
-            $isposted = forum_user_has_posted($forum->id, $discussion->id, $USER->id);            
+            //$isposted = forum_user_has_posted_check($forum->id, $discussion->id, $USER->id);
+            $isposted = forum_discussions_user_has_posted($forum->id, $USER->id);            
             if(empty($isposted) || has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id,'attempt'=> $post->id)),'text'=>$str->attempt);
             }                            
@@ -5309,13 +5311,33 @@ function forum_user_has_posted($forumid, $did, $userid) {
         $sql = "SELECT 'x'
                   FROM {forum_posts} p
                   JOIN {forum_discussions} d ON d.id = p.discussion
-                 WHERE p.userid = :userid AND d.forum = :forumid AND p.parent > :parent"; // P.parent > o because of secondary thread.
-        return $DB->record_exists_sql($sql, array('forumid'=>$forumid,'userid'=>$userid, 'parent' => 0));
+                 WHERE p.userid = :userid AND d.forum = :forumid";
+        return $DB->record_exists_sql($sql, array('forumid'=>$forumid,'userid'=>$userid));
     } else {
-        return $DB->record_exists('forum_posts', array('discussion'=>$did,'userid'=>$userid,'parent' => 0));
+        return $DB->record_exists('forum_posts', array('discussion'=>$did,'userid'=>$userid));
     }
 }
 
+/**
+ * @global object
+ * @global object
+ * @param int $forumid
+ * @param int $userid
+ * @return array
+ */
+function forum_discussions_user_has_posted($forumid, $userid) {  // Change function because of duplicacy.
+    global $CFG, $DB;
+    $haspostedsql = "SELECT p.id AS id,
+                            p.*
+                       FROM {forum_posts} p,
+                            {forum_discussions} d
+                      WHERE p.discussion = d.id 
+                        AND d.forum = ?
+                        AND p.userid = ?
+                        AND p.parent > ?";
+
+    return $DB->get_records_sql($haspostedsql, array($forumid, $userid, 0));
+}
 /**
  * Returns creation time of the first user's post in given discussion
  * @global object $DB
@@ -6135,9 +6157,12 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
  */
 function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode, $reply, $forumtracked, $posts , $sthread = false, $attemptdisplaymode = false) {
     global $USER, $CFG;
-    echo $sthread;
+    $modcontext       = context_module::instance($cm->id);
     $link  = false;
     foreach ($posts as $post) {
+        if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+            continue;
+        } 
         if ($post->parent < 0) { // Handle for secondary thread.
             continue;
         }
@@ -6181,6 +6206,9 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
         $modcontext       = context_module::instance($cm->id);
         $canviewfullnames = has_capability('moodle/site:viewfullnames', $modcontext);
         foreach ($posts as $post) {
+                if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+                    continue;
+                } 
                 if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
                     continue; 
                 }
