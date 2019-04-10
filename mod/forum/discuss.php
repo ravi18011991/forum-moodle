@@ -30,7 +30,7 @@ $d      = required_param('d', PARAM_INT);                // Discussion ID
 $sthread = optional_param('sthread', 0, PARAM_INT);                // Discussion ID
 $parent = optional_param('parent', 0, PARAM_INT);        // If set, then display this post and all children.
 $mode   = optional_param('mode', 0, PARAM_INT);          // If set, changes the layout of the thread
-$attemptdisplaymode = optional_param('attemptdisplaymode', 0, PARAM_INT); 
+$attemptdisplaymode = optional_param('attemptdisplaymode', 0, PARAM_INT); // TODO: qandadisplay
 $move   = optional_param('move', 0, PARAM_INT);          // If set, moves this discussion to another forum
 $mark   = optional_param('mark', '', PARAM_ALPHA);       // Used for tracking read posts if user initiated.
 $postid = optional_param('postid', 0, PARAM_INT);        // Used for tracking read posts if user initiated.
@@ -240,6 +240,7 @@ if ($mode) {
 if ($attemptdisplaymode) { // TODO: attemptdisplaymode.
     set_user_preference('forum_attemptdisplaymode', $attemptdisplaymode);
 }
+
 $displaymode = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
 //echo '<pre>'; print_r($parent);
 if ($parent) {

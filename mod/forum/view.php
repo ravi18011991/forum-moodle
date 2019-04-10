@@ -148,7 +148,8 @@
             if ($mode) {
                 set_user_preference("forum_displaymode", $mode);
             }
-            $displaymode = get_user_preferences("forum_displaymode", $CFG->forum_displaymode);
+            $displaymode = get_user_preferences("
+            ", $CFG->forum_displaymode);
             forum_print_mode_form($forum->id, $displaymode, $forum->type);
         }
     }

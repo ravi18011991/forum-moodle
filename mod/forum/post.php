@@ -200,7 +200,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             die;
         }
     }   
-    if (! forum_user_can_post($forum, $discussion, $USER, $cm, $course, $modcontext)) {
+    if (!forum_user_can_post($forum, $discussion, $USER, $cm, $course, $modcontext)) {
         if (!isguestuser()) {
             if (!is_enrolled($coursecontext)) {  // User is a guest here!
                 $SESSION->wantsurl = qualified_me();
@@ -212,7 +212,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
         }
         print_error('nopostforum', 'forum');
     }
-
     // Make sure user can post here.
     if (isset($cm->groupmode) && empty($course->groupmodeforce)) {
         $groupmode = $cm->groupmode;
@@ -228,7 +227,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             }
         }
     }
-
     if (!$cm->visible and !has_capability('moodle/course:viewhiddenactivities', $modcontext)) {        
         print_error("activityiscurrentlyhidden");
     }

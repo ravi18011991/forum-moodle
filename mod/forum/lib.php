@@ -38,9 +38,9 @@ define('FORUM_FORCESUBSCRIBE', 1);
 define('FORUM_INITIALSUBSCRIBE', 2);
 define('FORUM_DISALLOWSUBSCRIBE',3);
 
-define('FORUM_VIEW_ATTEMPT_DEFAULT_POST', 4);
-define('FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT', 5);
-define('FORUM_SHOW_DRAFT_POST_ONLY', 6);
+define('FORUM_QANDA_VIEW_ALL_BUT_DRAFTS', 0);
+define('FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY',1);
+define('FORUM_QANDA_VIEW_DRAFTS_ONLY', 2);
 //define('FORUM_DISALLOWSUBSCRIBE',3);
 
 /**
@@ -3317,7 +3317,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     if ($istracked && is_null($postisread)) {
         $postisread = forum_tp_is_post_read($USER->id, $post);
     }
-
+    //$isposted = forum_discussions_user_has_posted($forum->id, $USER->id);
+    //echo '<pre>'; print_r($isposted); exit;  
+   // echo $post->parent;
     if(!$sthread) { // doubt.
         if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm, false)) {
             // Do _not_ check the deleted flag - we need to display a different UI.
@@ -3537,7 +3539,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
             //echo  '<pre>'; print_r($post); exit;
             //echo '<pre>'; print_r(forum_user_has_posted($forum->id, $discussion->id, $USER->id)); exit;
             //$isposted = forum_user_has_posted_check($forum->id, $discussion->id, $USER->id);
-            $isposted = forum_discussions_user_has_posted($forum->id, $USER->id);            
+            echo $discussion->firstpost .'r';
+            $isposted = forum_discussions_user_has_posted($forum->id, $USER->id, $discussion->id); // qanda_attempt .            
             if(empty($isposted) || has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id,'attempt'=> $post->id)),'text'=>$str->attempt);
             }                            
@@ -4306,12 +4309,12 @@ function forum_print_mode_form($id, $mode, $forumtype='') {
 }
 
 /**
- * Print the drop down that allows the user to select how they want to have
+ * Print the drop down that allows the teacher to select attempt display mode
  * the attempt displayed.
  *
  * @param int $id forum id if $forumtype is 'single',
  *              discussion id for any other forum type
- * @param mixed $mode forum layout mode
+ * @param mixed $moattemptdisplaymode forum layout mode
  * @param string $forumtype optional
  */
 function forum_print_attempt_form($id, $attemptdisplaymode, $forumtype) {
@@ -5325,7 +5328,7 @@ function forum_user_has_posted($forumid, $did, $userid) {
  * @param int $userid
  * @return array
  */
-function forum_discussions_user_has_posted($forumid, $userid) {  // Change function because of duplicacy.
+function forum_discussions_user_has_posted($forumid, $userid, $discussionid) {  // Change function because of duplicacy.
     global $CFG, $DB;
     $haspostedsql = "SELECT p.id AS id,
                             p.*
@@ -5334,9 +5337,10 @@ function forum_discussions_user_has_posted($forumid, $userid) {  // Change funct
                       WHERE p.discussion = d.id 
                         AND d.forum = ?
                         AND p.userid = ?
-                        AND p.parent > ?";
+                        AND p.parent > ?
+                        AND p.discussion = ?";
 
-    return $DB->get_records_sql($haspostedsql, array($forumid, $userid, 0));
+    return $DB->get_records_sql($haspostedsql, array($forumid, $userid, 0, $discussionid)); // TODO: return 
 }
 /**
  * Returns creation time of the first user's post in given discussion
@@ -5347,8 +5351,10 @@ function forum_discussions_user_has_posted($forumid, $userid) {  // Change funct
  */
 function forum_get_user_posted_time($did, $userid) {
     global $DB;
-
-    $posttime = $DB->get_field('forum_posts', 'MIN(created)', array('userid'=>$userid, 'discussion'=>$did));
+    $posttime = $DB->get_field_sql('SELECT MIN(created) FROM {forum_posts} WHERE 
+                                    userid = ? AND discussion = ? AND parent > ?',
+                                    array($userid, $did, 0)); // for parent > 0 for skip secondary thread.
+    //$posttime = $DB->get_field('forum_posts', 'MIN(created)', array('userid'=>$userid, 'discussion'=>$did));
     if (empty($posttime)) {
         return false;
     }
@@ -5657,7 +5663,7 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
         $post->id = $post->parent;
     }
 
-    if ($checkdeleted && !empty($post->deleted)) { // 
+    if ($checkdeleted && !empty($post->deleted)) { 
         return false;
     }
 
@@ -5667,7 +5673,7 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
             print_error('invalidcoursemodule');
         }
     }
-
+    
     // Context used throughout function.
     $modcontext = context_module::instance($cm->id);
 
@@ -5690,19 +5696,13 @@ function forum_user_can_see_post($forum, $discussion, $post, $user = null, $cm =
             return false;
         }
     }
-
     if (!forum_user_can_see_timed_discussion($discussion, $user, $modcontext)) {
         return false;
-    }
-
+    }    
     if (!forum_user_can_see_group_discussion($discussion, $cm, $modcontext)) {
         return false;
     }
-
-    if ($forum->type == 'qanda') { // to do - change.
-        // if ($post->userid == $user->id) {
-        //     return true;
-        // } 
+    if ($forum->type == 'qanda') { // TODO: change. 
         if (has_capability('mod/forum:viewqandawithoutposting', $modcontext, $user->id) || $post->userid == $user->id
                 || (isset($discussion->firstpost) && $discussion->firstpost == $post->id)) {
             return true;
@@ -6113,7 +6113,6 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
         $posts = $rm->get_ratings($ratingoptions);
     }
 
-
     $post->forum = $forum->id;   // Add the forum id to the post object, later used by forum_print_post
     $post->forumtype = $forum->type;
 
@@ -6169,13 +6168,13 @@ function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode
         if (!$post->parent) {
             continue;
         }
-        if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
+        if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
             continue; 
         }
-        if($attemptdisplaymode == FORUM_VIEW_ATTEMPT_DEFAULT_POST and $post->created == 0) { 
+        if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
             continue;
         }
-        if($attemptdisplaymode == FORUM_SHOW_DRAFT_POST_ONLY and $post->created > 0) {
+        if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
             continue;
         }
         $post->subject = format_string($post->subject);
@@ -6209,13 +6208,13 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
                 if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                     continue;
                 } 
-                if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
+                if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                     continue; 
                 }
-                if($attemptdisplaymode == FORUM_VIEW_ATTEMPT_DEFAULT_POST and $post->created == 0) { 
+                if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
                     continue;
                 }
-                if($attemptdisplaymode == FORUM_SHOW_DRAFT_POST_ONLY and $post->created > 0) {
+                if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                     continue;
                 }
             echo '<div class="indent">';
@@ -6373,17 +6372,16 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
         $posts = $posts[$parent->id]->children; 
         //echo '<pre>'; print_r($posts); exit;       
         foreach ($posts as $post) {
-            //TODO: check capability. test teacher can reply even draft post.
             if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 continue;
             }                    
-            if($attemptdisplaymode == FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT and $post->parent !== $discussion->firstpost) {
+            if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 continue; 
             }
-            if($attemptdisplaymode == FORUM_VIEW_ATTEMPT_DEFAULT_POST and $post->created == 0) { 
+            if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
                 continue;
             }
-            if($attemptdisplaymode == FORUM_SHOW_DRAFT_POST_ONLY and $post->created > 0) {
+            if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 continue;
             }
             echo '<div class="indent">';
@@ -7714,10 +7712,10 @@ function forum_reset_course_form_defaults($course) {
  *
  * @return array
  */
-function forum_get_attempt() {
-    return array (FORUM_VIEW_ATTEMPT_DEFAULT_POST => get_string('viewdefaultpost', 'forum'),
-            FORUM_VIEW_ONLY_POST_INCLUDING_DRAFT => get_string('viewdraftincludingattempt', 'forum'),
-            FORUM_SHOW_DRAFT_POST_ONLY => get_string('showdraftpostonly', 'forum'));
+ function forum_get_attempt() {
+    return array (FORUM_QANDA_VIEW_ALL_BUT_DRAFTS => get_string('viewdefaultpost', 'forum'),
+        FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY => get_string('viewdraftincludingattempt', 'forum'),
+        FORUM_QANDA_VIEW_DRAFTS_ONLY => get_string('showdraftpostonly', 'forum'));
 }
 /**
  * Returns array of forum layout modes
