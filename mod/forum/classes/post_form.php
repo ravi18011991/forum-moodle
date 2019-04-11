@@ -94,6 +94,7 @@ class mod_forum_post_form extends moodleform {
         $edit = $this->_customdata['edit'];
         $sthread = $this->_customdata['sthread'];
         $firstpostid = $this->_customdata['firstpostid']; // TODO:
+        $draftedit = $this->_customdata['draftedit']; // TODO:
         $thresholdwarning = $this->_customdata['thresholdwarning'];
         $mform->addElement('header', 'general', '');//fill in the data depending on page params later using set_data
         // If there is a warning message and we are not editing a post we need to handle the warning.
@@ -293,6 +294,9 @@ class mod_forum_post_form extends moodleform {
 
         $mform->addElement('hidden', 'reply');
         $mform->setType('reply', PARAM_INT);
+
+        $mform->addElement('hidden', 'draftedit');
+        $mform->setType('draftedit', PARAM_INT);
     }
 
     /**

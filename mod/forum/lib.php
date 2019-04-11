@@ -3422,7 +3422,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $str->editdraft   = get_string('editdraft', 'forum');
         $str->attempt      = get_string('attempt', 'forum'); 
         $str->backmaind    = get_string('backmaind', 'forum');
-        $str->sthread          = get_string('sthread', 'forum');
+        $str->sthread      = get_string('sthread', 'forum');
         $str->parent       = get_string('parent', 'forum');
         $str->pruneheading = get_string('pruneheading', 'forum');
         $str->prune        = get_string('prune', 'forum');
@@ -3520,7 +3520,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     } else if (($ownpost && $age < $CFG->maxeditingtime) || $cm->cache->caps['mod/forum:editanypost']) {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('edit'=>$post->id)), 'text'=>$str->edit);
     }
-    if ($cm->cache->caps['mod/forum:splitdiscussions'] && $post->parent && $forum->type != 'single') {
+    if($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { // split not display on draft 
+    } else if ($cm->cache->caps['mod/forum:splitdiscussions'] && $post->parent && $forum->type != 'single') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('prune'=>$post->id)), 'text'=>$str->prune, 'title'=>$str->pruneheading);
     }
     if ($forum->type == 'single' and $discussion->firstpost == $post->id) {
@@ -3539,7 +3540,7 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
             //echo  '<pre>'; print_r($post); exit;
             //echo '<pre>'; print_r(forum_user_has_posted($forum->id, $discussion->id, $USER->id)); exit;
             //$isposted = forum_user_has_posted_check($forum->id, $discussion->id, $USER->id);
-            echo $discussion->firstpost .'r';
+            //echo $discussion->firstpost .'r';
             $isposted = forum_discussions_user_has_posted($forum->id, $USER->id, $discussion->id); // qanda_attempt .            
             if(empty($isposted) || has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id,'attempt'=> $post->id)),'text'=>$str->attempt);
@@ -3717,14 +3718,14 @@ if ($sthread and $forum->type == 'qanda') { // Secondary thread.
     //echo $authorhidden; exit;
     if ($authorhidden) {
         if($forum->type == 'qanda' and $discussion->firstpost !== $post->id and $post->created == 0){
-            $bytext = userdate_htmltime($post->modified);
+            $bytext = '<b>DRAFT ATTEMPT</b>' .' '.userdate_htmltime($post->modified);
         } else {
             $bytext = userdate_htmltime($post->created);
         }        
     } else {
         $by = new stdClass();
         if($forum->type == 'qanda' and $discussion->firstpost !== $post->id and $post->created == 0){
-            $by->date = userdate_htmltime($post->modified);
+            $by->date =  '<b>DRAFT ATTEMPT</b>' .' '.userdate_htmltime($post->modified);
         } else {
             $by->date = userdate_htmltime($post->created);
         }     
@@ -6159,21 +6160,21 @@ function forum_print_posts_flat($course, &$cm, $forum, $discussion, $post, $mode
     $modcontext       = context_module::instance($cm->id);
     $link  = false;
     foreach ($posts as $post) {
-        if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
-            continue;
-        } 
         if ($post->parent < 0) { // Handle for secondary thread.
             continue;
         }
         if (!$post->parent) {
             continue;
         }
+        if ($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid) {
+            continue;
+        } 
+        // if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
+        //     continue;
+        // }
         if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
             continue; 
-        }
-        if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
-            continue;
-        }
+        }            
         if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
             continue;
         }
@@ -6205,18 +6206,18 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
         $modcontext       = context_module::instance($cm->id);
         $canviewfullnames = has_capability('moodle/site:viewfullnames', $modcontext);
         foreach ($posts as $post) {
-                if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
-                    continue;
-                } 
-                if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
-                    continue; 
-                }
-                if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
-                    continue;
-                }
-                if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
-                    continue;
-                }
+            if ($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid) {
+                continue;
+            } 
+            // if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
+            //     continue;
+            // }
+            if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+                continue; 
+            }            
+            if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+                continue;
+            }
             echo '<div class="indent">';
             if ($depth > 0) {
                 $ownpost = ($USER->id == $post->userid);
@@ -6372,15 +6373,15 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
         $posts = $posts[$parent->id]->children; 
         //echo '<pre>'; print_r($posts); exit;       
         foreach ($posts as $post) {
-            if ($forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid and !has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+            if ($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $forum->type == 'qanda' and $post->created == 0 and $USER->id !== $post->userid) {
                 continue;
-            }                    
+            } 
+            // if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
+            //     continue;
+            // }
             if($attemptdisplaymode == FORUM_QANDA_VIEW_ATTEMPTS_AND_DRAFTS_ONLY and $post->parent !== $discussion->firstpost and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 continue; 
-            }
-            if($attemptdisplaymode == FORUM_QANDA_VIEW_ALL_BUT_DRAFTS and $post->created == 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) { 
-                continue;
-            }
+            }            
             if($attemptdisplaymode == FORUM_QANDA_VIEW_DRAFTS_ONLY and $post->created > 0 and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 continue;
             }

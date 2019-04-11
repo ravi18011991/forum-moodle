@@ -18,7 +18,7 @@ $CFG->dboptions = array (
   'dbcollation' => 'utf8mb4_general_ci',
 );
 
-$CFG->wwwroot   = 'http://localhost/moodle362';
+$CFG->wwwroot   = 'http://local.vidya.io/moodle362';
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';
 

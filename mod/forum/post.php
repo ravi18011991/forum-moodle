@@ -54,7 +54,7 @@ $PAGE->set_url('/mod/forum/post.php', array(
 ));
 //echo $s; exit;
 // These page_params will be passed as hidden variables later in the form.
-$pageparams = array('reply' => $reply, 'sthread' => $sthread,'forum' => $forum, 'edit' => $edit,  'pconfirm' => $pconfirm, 'attempt' => $attempt);
+$pageparams = array('reply' => $reply, 'sthread' => $sthread,'forum' => $forum, 'edit' => $edit,  'pconfirm' => $pconfirm, 'attempt' => $attempt, 'draftedit' => $draftedit );
 
 $sitecontext = context_system::instance();
 
@@ -684,6 +684,7 @@ $mformpost = new mod_forum_post_form('post.php', array('course' => $course,
     'post' => $post,
     'sthread' => $sthread,
     'firstpostid' => $firstpost,
+    'draftedit' => $draftedit,
     'subscribe' => \mod_forum\subscriptions::is_subscribed($USER->id, $forum,
         null, $cm),
     'thresholdwarning' => $thresholdwarning,

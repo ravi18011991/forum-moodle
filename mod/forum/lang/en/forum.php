@@ -626,7 +626,7 @@ $string['attemptpost'] = 'Press OK to start an attempt. Instead, If you wish to 
 Though you are allowed only a single attempt, you will be able to complete it in multiple sessions using the Save as Draft feature';
 $string['showdraftpostonly'] = 'Show draft attempts only';
 $string['viewdraftincludingattempt'] = 'Show attempts only (including drafts)';
-$string['viewdefaultpost'] = 'Show all posts except draft attempts (default)';
+$string['viewdefaultpost'] = 'Show all posts except student draft attempts';
 $string['confirmdraftpost'] = 'Confirm all student drafts';
 $string['notifydraftconfirm'] = 'All draft post is now confirmed';
 $string['alreadydraftconfirmed'] = 'All draft post is already confirmed in this discussion';
