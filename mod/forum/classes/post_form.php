@@ -249,14 +249,16 @@ class mod_forum_post_form extends moodleform {
 
         //-------------------------------------------------------------------------------
         // buttons
-        if (isset($post->edit)) { // hack alert
+        if(isset($post->edit) and $draftedit) {
+            $submit_string = get_string('posttoforum', 'forum');
+        } else if (isset($post->edit)) { // hack alert
             $submit_string = get_string('savechanges');
         } else {
             $submit_string = get_string('posttoforum', 'forum');
         }
        //echo $post->id; exit;
        //echo '<pre>'; print_r($post); exit; 
-       if($forum->type == 'qanda' and !$sthread) {
+        if($forum->type == 'qanda' and !$sthread) {
             $buttonarray=array();
             if($post->parent == $firstpostid and $post->parent !== 0) {
                 $buttonarray[] =& $mform->createElement('submit', 'savedraft', get_string('savedraft', 'mod_forum'));

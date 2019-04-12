@@ -254,7 +254,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
             </tr>
         </tbody>
     </table>';
-        $newquestion = str_replace("</li>","</li>$table", $question);   
+        $newquestion = str_replace("</li>","</li>$table", $question);
         $post->message     = $newquestion;
     } else {
         $post->message     = '';
