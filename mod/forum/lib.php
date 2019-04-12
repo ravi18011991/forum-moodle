@@ -3436,7 +3436,6 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     } else {
         $discussionlink = new moodle_url('/mod/forum/discuss.php', array('d'=>$post->discussion));
     }
-
     // Build an object that represents the posting user
     $postuser = new stdClass;
     $postuserfields = explode(',', user_picture::fields());
@@ -3530,17 +3529,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('delete'=>$post->id)), 'text'=>$str->delete);
     } else if ($forum->type == 'qanda' and $post->parent == $discussion->firstpost and $post->created == 0) { 
         $commands[] = array('url'=>new moodle_url('/mod/forum/post.php', array('delete'=>$post->id)), 'text'=>$str->delete);
-    }
-    if ($reply) {
-
-    }  
+    }     
     if($forum->type == 'qanda') {
         if($discussion->firstpost == $post->id) {                        
-            //forum_discussions_user_has_posted_in($forum->id, $USER->id); 
-            //echo  '<pre>'; print_r($post); exit;
-            //echo '<pre>'; print_r(forum_user_has_posted($forum->id, $discussion->id, $USER->id)); exit;
-            //$isposted = forum_user_has_posted_check($forum->id, $discussion->id, $USER->id);
-            //echo $discussion->firstpost .'r';
             $isposted = forum_discussions_user_has_posted($forum->id, $USER->id, $discussion->id); // qanda_attempt .            
             if(empty($isposted) || has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
                 $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id,'attempt'=> $post->id)),'text'=>$str->attempt);
@@ -3551,7 +3542,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
             $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
         }  
     } else {
-        $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
+        if ($reply) {
+            $commands[] = array('url'=>new moodle_url('/mod/forum/post.php#mformforum', array('reply'=>$post->id)), 'text'=>$str->reply);
+        }         
     }     
     if ($forum->type == 'qanda' and $discussion->firstpost == $post->id and basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
         $commands[] = array('url'=>new moodle_url('/mod/forum/discuss.php', array('d'=>$discussion->id,'sthread'=>true)), 'text'=>$str->sthread);
