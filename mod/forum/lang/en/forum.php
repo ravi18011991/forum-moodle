@@ -623,8 +623,7 @@ $string['postconfirm'] = 'Confirm and post';
 $string['editdraft'] = 'Edit draft'; 
 $string['confirmpost'] = 'Pressing OK will post this attempt and make it visible to other students. Press Cancel to continue in draft mode';
 $string['attemptpost'] = 'You are going to post an attempt. If you only wish to clarify a doubt or to post on any other issue, Cancel and post in the secondary thread instead. </br>
-You are allowed only a single attempt.</br>
-The following form will only allow you to Save as draft. You might need to Confirm and Post for your attempt to be considered.';
+You are allowed only a single attempt.';
 $string['showdraftpostonly'] = 'Show draft attempts only';
 $string['viewdraftincludingattempt'] = 'Show attempts only (including drafts)';
 $string['viewdefaultpost'] = 'Show all posts except student draft attempts';
@@ -632,3 +631,5 @@ $string['confirmdraftpost'] = 'Confirm all student drafts';
 $string['notifydraftconfirm'] = 'All draft post is now confirmed';
 $string['alreadydraftconfirmed'] = 'All draft post is already confirmed in this discussion';
 $string['draftpostconfirmation'] = 'Are you sure want to confirm all student drafts post';
+$string['attemptdraftedit'] = 'The following form will only allow you to Save as draft. You might need to <b> Confirm and Post </b> for your attempt to be considered.
+';

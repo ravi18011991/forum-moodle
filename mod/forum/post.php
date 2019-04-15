@@ -296,9 +296,23 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     } else {
         $modcontext = context_module::instance($cm->id);
     }
-
     $PAGE->set_cm($cm, $course, $forum);
     // echo $draftedit; exit;
+    if($forum->type == 'qanda' and $draftedit) {
+        require_login($course, false, $cm);
+        //$modcontext = context_module::instance($cm->id);
+        $submiturl = new moodle_url("/mod/forum/post.php", array('edit' => $edit));
+        $returnurl = new moodle_url("/mod/forum/discuss.php", array('d' => $discussion->id));                 
+        if ($confirm != $draftedit) {
+            echo $OUTPUT->header();
+            echo $OUTPUT->heading(format_string($forum->name));
+            $optionsyes = array('draftedit' => $draftedit, 'confirm' => $draftedit,'sesskey' => sesskey());
+                            echo $OUTPUT->confirm(get_string('attemptdraftedit', 'mod_forum'),
+                                new moodle_url($submiturl, $optionsyes), $returnurl);
+            echo $OUTPUT->footer();
+            die;
+        }
+    }   
     if($forum->type == 'qanda' and !$draftedit) { // Handling for draft post.
         if (!($forum->type == 'news' && !$post->parent && $discussion->timestart > time())) {
             if (((time() - $post->created) > $CFG->maxeditingtime) and
