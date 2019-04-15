@@ -246,28 +246,26 @@ class mod_forum_post_form extends moodleform {
             $mform->addElement('tags', 'tags', get_string('tags'),
                 array('itemtype' => 'forum_posts', 'component' => 'mod_forum'));
         }
-
         //-------------------------------------------------------------------------------
-        // buttons
-        if(isset($post->edit) and $draftedit) {
-            $submit_string = get_string('posttoforum', 'forum');
-        } else if (isset($post->edit)) { // hack alert
-            $submit_string = get_string('savechanges');
-        } else {
-            $submit_string = get_string('posttoforum', 'forum');
-        }
-       //echo $post->id; exit;
-       //echo '<pre>'; print_r($post); exit; 
         if($forum->type == 'qanda' and !$sthread) {
-            $buttonarray=array();
+            $buttonarray = array();
             if($post->parent == $firstpostid and $post->parent !== 0) {
                 $buttonarray[] =& $mform->createElement('submit', 'savedraft', get_string('savedraft', 'mod_forum'));
             }
-            $buttonarray[] =& $mform->createElement('submit', 'submitbutton', $submit_string);
+            if(isset($post->edit) and $draftedit) {
+                $buttonarray[] =& $mform->createElement('submit', 'submitbutton', get_string('posttoforum', 'forum'));
+            } else {
+                $buttonarray[] =& $mform->createElement('submit', 'submitbutton', get_string('savechanges'));
+            }
             $buttonarray[] =& $mform->createElement('cancel');
             $mform->addGroup($buttonarray, 'buttonar', '', array(' '), false);
             $mform->closeHeaderBefore('buttonar');
         } else {        
+            if (isset($post->edit)) { // hack alert
+                $submit_string = get_string('savechanges');
+            } else {
+                $submit_string = get_string('posttoforum', 'forum');
+            }
             $this->add_action_buttons(true, $submit_string);    
     }
         $mform->addElement('hidden', 'course');
