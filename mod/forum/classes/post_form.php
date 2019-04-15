@@ -257,7 +257,7 @@ class mod_forum_post_form extends moodleform {
         }
         if($forum->type == 'qanda' and !$sthread) {
             $buttonarray = array();
-            if($post->parent == $firstpostid and $post->parent !== 0) {
+            if($post->parent == $firstpostid and $post->parent !== 0 and $post->created == 0) {
                 $buttonarray[] =& $mform->createElement('submit', 'savedraft', get_string('savedraft', 'mod_forum'));
             }
             if(!$draftedit) {

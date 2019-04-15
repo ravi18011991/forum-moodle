@@ -155,7 +155,6 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     } else {
         $post->groupid = groups_get_activity_group($cm);
     }
-
     // Unsetting this will allow the correct return URL to be calculated later.
     unset($SESSION->fromdiscussion);
 
@@ -240,6 +239,7 @@ if (!empty($forum)) {      // User is starting a new discussion in a forum.
     $post->parent      = $parent->id;
     $post->subject     = $parent->subject;
     $post->userid      = $USER->id;
+    $post->created = 0;
     //echo $discussion->firstpost;
     //echo '<pre>'; print_r($post); exit;
     if($forum->type == 'qanda'and $discussion->firstpost == $post->parent and !$sthread) { // to do for li condition
