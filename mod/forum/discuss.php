@@ -352,8 +352,8 @@ if (!empty($CFG->enableportfolios) && has_capability('mod/forum:exportdiscussion
 // groups selector not needed here
 echo '<div class="discussioncontrol displaymode">';
 forum_print_mode_form($discussion->id, $displaymode);
-echo '&nbsp &nbsp'; // TODO: UI rearrange.
-if($forum->type == 'qanda' and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+if($forum->type == 'qanda' and !$sthread and has_capability('mod/forum:viewqandawithoutposting', $modcontext)) {
+    echo '&nbsp &nbsp'; // TODO: UI rearrange.
     forum_print_attempt_form($discussion->id, $attemptdisplaymode, $forum->type);
 }
 echo "</div>";

@@ -3468,8 +3468,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     $permalink->set_anchor('p' . $post->id);
     // Add a permalink. 
     if(!$sthread) { // Identify not secondary thread.      
-        echo $sthread.' ';
-        echo  $discussion->firstpost.'-'.$post->id .'-'.'main sthread';   
+        //echo $sthread.' ';
+        //echo  $discussion->firstpost.'-'.$post->id .'-'.'main sthread';   
     $commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
     // SPECIAL CASE: The front page can display a news item post to non-logged in users.
     // Don't display the mark read / unread controls in this case.
@@ -3551,8 +3551,8 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
     } 
 }
 if ($sthread and $forum->type == 'qanda') { // Secondary thread.     
-    echo $sthread.' ';
-    echo  $discussion->firstpost.'-'.$post->id .'-'.'Secondary thread';;
+    //echo $sthread.' ';
+    //echo  $discussion->firstpost.'-'.$post->id .'-'.'Secondary thread';;
         if($discussion->firstpost == $post->id and  basename($_SERVER["SCRIPT_FILENAME"]) !== 'post.php') {
             //$commands[] = array('url' => $permalink, 'text' => get_string('permalink', 'forum'), 'attributes' => ['rel' => 'bookmark']);
             //unset($commands);
